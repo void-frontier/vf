@@ -699,9 +699,11 @@ function ShipScreen({ credits, inventory, installed, onBuy }) {
 // LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 function LoginScreen() {
-  const [email, setEmail]   = useState("");
-  const [sent, setSent]     = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]       = useState("");
+  const [sent, setSent]         = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [guestError, setGuestError] = useState("");
 
   const handleLogin = async () => {
     if (!email) return;
@@ -714,31 +716,96 @@ function LoginScreen() {
     if (!error) setSent(true);
   };
 
+  const handleGuest = async () => {
+    setLoading(true);
+    setGuestError("");
+    const { error } = await supabase.auth.signInAnonymously();
+    setLoading(false);
+    if (error) setGuestError("Gastzugang momentan nicht verfügbar.");
+  };
+
+  const features = [
+    { icon: "⛏", label: "Asteroiden abbauen" },
+    { icon: "🚀", label: "Schiff ausbauen" },
+    { icon: "💱", label: "Ressourcen handeln" },
+    { icon: "🌌", label: "Das Universum erkunden" },
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", zIndex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 40 }}>
-        <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 5, color: "rgba(255,255,255,0.18)", marginBottom: 6 }}>◆ STELLAR COMMAND ◆</div>
-        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, letterSpacing: 4, color: "#5bc4e8", textShadow: "0 0 48px rgba(91,196,232,0.3)" }}>VOID FRONTIER</h1>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", position: "relative", zIndex: 1, overflowY: "auto" }}>
+
+      {/* Hero */}
+      <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 6, color: "rgba(255,255,255,0.18)", marginBottom: 10 }}>◆ STELLAR COMMAND ◆</div>
+        <h1 className="font-display" style={{ fontSize: "clamp(40px, 8vw, 64px)", fontWeight: 700, letterSpacing: 6, color: "#5bc4e8", textShadow: "0 0 60px rgba(91,196,232,0.45), 0 0 120px rgba(91,196,232,0.15)", margin: "0 0 16px" }}>VOID FRONTIER</h1>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", maxWidth: 380, margin: "0 auto", lineHeight: 1.7 }}>
+          Ein Browser-Idle-Game im tiefen Weltraum. Baue Asteroiden ab, rüste dein Schiff aus und beherrsche die Leere — ein Upgrade nach dem anderen.
+        </p>
       </div>
-      <div style={{ width: "100%", maxWidth: 360, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "32px 28px" }}>
+
+      {/* Features */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginBottom: 40 }}>
+        {features.map(f => (
+          <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 999, fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, color: "rgba(255,255,255,0.55)" }}>
+            <span>{f.icon}</span>
+            <span>{f.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Alpha Notice */}
+      <div style={{ width: "100%", maxWidth: 400, marginBottom: 28, padding: "12px 16px", background: "rgba(255,180,0,0.06)", border: "1px solid rgba(255,180,0,0.2)", borderRadius: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <span style={{ fontSize: 14, marginTop: 1 }}>⚠️</span>
+        <div>
+          <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "rgba(255,180,0,0.8)", marginBottom: 3 }}>ALPHA-PHASE</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
+            Alle Spielstände können jederzeit zurückgesetzt werden. Bugs sind zu erwarten — Feedback ist willkommen.
+          </div>
+        </div>
+      </div>
+
+      {/* Login Card */}
+      <div style={{ width: "100%", maxWidth: 400, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "28px 24px" }}>
         {sent ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>📬</div>
             <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10 }}>Check your email</div>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>We sent a login link to <strong style={{ color: "#fff" }}>{email}</strong>. Click it to enter the game.</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, margin: 0 }}>Wir haben einen Login-Link an <strong style={{ color: "#fff" }}>{email}</strong> geschickt. Klick ihn an, um ins Spiel zu gelangen.</p>
           </div>
-        ) : (
+        ) : showEmail ? (
           <>
-            <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginBottom: 6 }}>Enter the Void</div>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 24 }}>No password needed. Enter your email and we'll send you a magic login link.</p>
-            <input type="email" placeholder="your@email.com" value={email}
+            <button onClick={() => setShowEmail(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, cursor: "pointer", padding: 0, marginBottom: 18 }}>← ZURÜCK</button>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginBottom: 5 }}>Mit E-Mail einloggen</div>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, marginBottom: 20, marginTop: 0 }}>Kein Passwort nötig — wir schicken dir einen magischen Login-Link.</p>
+            <input type="email" placeholder="deine@email.com" value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
-              style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif", marginBottom: 14, outline: "none" }}
+              style={{ width: "100%", boxSizing: "border-box", padding: "11px 13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif", marginBottom: 12, outline: "none" }}
             />
-            <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.12)", border: "1px solid rgba(91,196,232,0.35)", borderRadius: 8, color: "#5bc4e8", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1.5, cursor: "pointer" }}>
-              {loading ? "SENDING..." : "SEND LOGIN LINK"}
+            <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.1)", border: "1px solid rgba(91,196,232,0.3)", borderRadius: 8, color: "#5bc4e8", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1.5, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
+              {loading ? "WIRD GESENDET…" : "LOGIN-LINK SENDEN"}
             </button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginBottom: 18, textAlign: "center" }}>Bereit abzuheben?</div>
+
+            {/* Guest button — primary */}
+            <button onClick={handleGuest} disabled={loading} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, rgba(91,196,232,0.18), rgba(91,196,232,0.08))", border: "1px solid rgba(91,196,232,0.4)", borderRadius: 10, color: "#5bc4e8", fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", marginBottom: 10, opacity: loading ? 0.6 : 1, transition: "opacity 0.2s" }}>
+              {loading ? "WIRD GESTARTET…" : "🚀  JETZT TESTEN — KEIN ACCOUNT NÖTIG"}
+            </button>
+            {guestError && <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", marginBottom: 10 }}>{guestError}</div>}
+
+            <div style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, margin: "6px 0 12px" }}>── ODER ──</div>
+
+            {/* Email button — secondary */}
+            <button onClick={() => setShowEmail(true)} style={{ width: "100%", padding: "11px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.45)", fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, cursor: "pointer" }}>
+              MIT E-MAIL EINLOGGEN
+            </button>
+
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", margin: "14px 0 0", lineHeight: 1.6 }}>
+              Gastspiele sind temporär. Für dauerhaften Fortschritt einfach E-Mail hinterlegen.
+            </p>
           </>
         )}
       </div>
