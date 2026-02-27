@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS & DATA
@@ -695,11 +696,63 @@ function ShipScreen({ credits, inventory, installed, onBuy }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LOGIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+function LoginScreen() {
+  const [email, setEmail]   = useState("");
+  const [sent, setSent]     = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    setLoading(false);
+    if (!error) setSent(true);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", zIndex: 1 }}>
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 5, color: "rgba(255,255,255,0.18)", marginBottom: 6 }}>◆ STELLAR COMMAND ◆</div>
+        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, letterSpacing: 4, color: "#5bc4e8", textShadow: "0 0 48px rgba(91,196,232,0.3)" }}>VOID FRONTIER</h1>
+      </div>
+      <div style={{ width: "100%", maxWidth: 360, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "32px 28px" }}>
+        {sent ? (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>📬</div>
+            <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10 }}>Check your email</div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>We sent a login link to <strong style={{ color: "#fff" }}>{email}</strong>. Click it to enter the game.</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginBottom: 6 }}>Enter the Void</div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 24 }}>No password needed. Enter your email and we'll send you a magic login link.</p>
+            <input type="email" placeholder="your@email.com" value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif", marginBottom: 14, outline: "none" }}
+            />
+            <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.12)", border: "1px solid rgba(91,196,232,0.35)", borderRadius: 8, color: "#5bc4e8", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1.5, cursor: "pointer" }}>
+              {loading ? "SENDING..." : "SEND LOGIN LINK"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT APP
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [session, setSession]   = useState(undefined); // undefined = loading
   const [tab, setTab]           = useState("activities");
-  const [screen, setScreen]     = useState(null);   // "mining" | "sector" | "refinery"
+  const [screen, setScreen]     = useState(null);
   const [screenData, setScreenData] = useState(null);
 
   const [inventory, setInventory] = useState({});
@@ -715,6 +768,46 @@ export default function App() {
   const timerRef    = useRef(null);
   const refTimerRef = useRef(null);
   const toastId     = useRef(0);
+  const saveTimer   = useRef(null);
+
+  // ── AUTH ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) loadGame(session.user.id);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ── LOAD GAME ──────────────────────────────────────────────────────────
+  const loadGame = async (userId) => {
+    const { data } = await supabase.from("game_saves").select("save_data").eq("user_id", userId).single();
+    if (data?.save_data) {
+      const s = data.save_data;
+      if (s.inventory) setInventory(s.inventory);
+      if (s.credits)   setCredits(s.credits);
+      if (s.miningXP)  setMiningXP(s.miningXP);
+      if (s.cargo)     setCargo(s.cargo);
+      if (s.installed) setInstalled(s.installed);
+    }
+  };
+
+  // ── SAVE GAME (auto every 30s) ─────────────────────────────────────────
+  const saveGame = useCallback(async () => {
+    if (!session?.user) return;
+    await supabase.from("game_saves").upsert({
+      user_id: session.user.id,
+      save_data: { inventory, credits, miningXP, cargo, installed },
+      updated_at: new Date().toISOString()
+    });
+  }, [session, inventory, credits, miningXP, cargo, installed]);
+
+  useEffect(() => {
+    if (!session) return;
+    saveTimer.current = setInterval(saveGame, 30000);
+    return () => clearInterval(saveTimer.current);
+  }, [saveGame, session]);
 
   const warpLevel   = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "warp"   && installed[u.id]).map(u => u.effect.warp),   0);
   const moduleLevel = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "module" && installed[u.id]).map(u => u.effect.module), 0);
@@ -848,6 +941,27 @@ export default function App() {
     { id: "ship",       label: "Ship",       icon: "🚀" },
   ];
 
+  // Auth gates
+  if (session === undefined) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        {STARS.map((s, i) => <div key={i} style={{ position: "absolute", left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, borderRadius: "50%", background: "white", opacity: s.o, animation: `twinkle ${s.d}s ease-in-out infinite` }} />)}
+      </div>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2, fontSize: 12 }}>LOADING...</div>
+    </>
+  );
+
+  if (!session) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        {STARS.map((s, i) => <div key={i} style={{ position: "absolute", left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, borderRadius: "50%", background: "white", opacity: s.o, animation: `twinkle ${s.d}s ease-in-out infinite` }} />)}
+      </div>
+      <LoginScreen />
+    </>
+  );
+
   return (
     <>
       <style>{CSS}</style>
@@ -894,11 +1008,16 @@ export default function App() {
                   )}
                 </div>
               </div>
-              {cargoFull && (
-                <button onClick={() => { setCargo(0); addLog("📦 Cargo manually unloaded"); addToast("Cargo unloaded.", "📦", "#e8a838"); }} style={{ background: "rgba(232,168,56,0.1)", border: "1px solid rgba(232,168,56,0.3)", color: "#e8a838", borderRadius: 6, padding: "6px 12px", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", cursor: "pointer", letterSpacing: 1, flexShrink: 0 }}>
-                  UNLOAD
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                {cargoFull && (
+                  <button onClick={() => { setCargo(0); addLog("📦 Cargo manually unloaded"); addToast("Cargo unloaded.", "📦", "#e8a838"); }} style={{ background: "rgba(232,168,56,0.1)", border: "1px solid rgba(232,168,56,0.3)", color: "#e8a838", borderRadius: 6, padding: "6px 12px", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", cursor: "pointer", letterSpacing: 1 }}>
+                    UNLOAD
+                  </button>
+                )}
+                <button onClick={() => { saveGame(); supabase.auth.signOut(); }} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)", borderRadius: 6, padding: "6px 12px", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", cursor: "pointer", letterSpacing: 1 }}>
+                  LOGOUT
                 </button>
-              )}
+              </div>
             </div>
           </div>
         )}
