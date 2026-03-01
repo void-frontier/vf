@@ -195,55 +195,22 @@ button:focus-visible {
   height: 130px;
   position: relative;
   overflow: hidden;
-  border-radius: 10px;
-  margin-bottom: 20px;
 }
 
-.hero-banner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1px 1px at 15% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 75% 35%, rgba(255,255,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 25% 65%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.2) 0%, transparent 100%);
-  pointer-events: none;
-}
-
-.hero-banner--mining {
-  background: linear-gradient(135deg, #1a0e00 0%, #2a1800 40%, #0d0800 100%);
-  border: 1px solid rgba(180,100,20,0.2);
-}
-
-.hero-banner--salvaging {
-  background: linear-gradient(135deg, #0a0f1c 0%, #141e30 50%, #060a12 100%);
-  border: 1px solid rgba(60,100,180,0.2);
-}
-
-.hero-banner--refining {
-  background: linear-gradient(135deg, #0e1a0a 0%, #1a2e10 50%, #080f05 100%);
-  border: 1px solid rgba(60,180,80,0.2);
-}
-
-.hero-banner--crafting {
-  background: linear-gradient(135deg, #0a1018 0%, #141c28 50%, #060c14 100%);
-  border: 1px solid rgba(100,140,200,0.2);
-}
-
-.hero-banner--abandoned {
-  background: linear-gradient(135deg, #100a1a 0%, #1c1028 50%, #080610 100%);
-  border: 1px solid rgba(120,80,200,0.2);
-}
+.hero-banner--mining    { background-image: url('/banner_mine.jpg');      background-size: cover; background-position: center; }
+.hero-banner--salvaging { background-image: url('/banner_salvage.jpg');   background-size: cover; background-position: center; }
+.hero-banner--refining  { background-image: url('/banner_refining.jpg');  background-size: cover; background-position: center; }
+.hero-banner--crafting  { background: linear-gradient(135deg, #0a1018 0%, #141c28 50%, #060c14 100%); }
+.hero-banner--abandoned { background-image: url('/banner_abandoned.jpg'); background-size: cover; background-position: center; }
 
 .hero-banner-content {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
   padding: 16px 20px;
-  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%);
 }
 
 .hero-banner-title {

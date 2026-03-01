@@ -54,13 +54,15 @@ const ITEMS = {
 const SECTORS = [
   {
     id: "home",    name: "Abandoned Planet", region: "Outer Rim · Sektor 0",   icon: "🏠", color: "#9b59b6", reqWarp: 0,
+    ambient: ["#c4763a", "#5a3070"],
     lore: "Deine Heimatbasis. Eingestürzte Strukturen, überall Schutt.",
     materials: [
       { id: "ruined_stone", time: 8, amount: 1 },
     ],
   },
   {
-    id: "kepler",  name: "Kepler Belt",   region: "Inner System · Sector 4",  icon: "🪐", color: "#e8a838", reqWarp: 0,
+    id: "kepler",  name: "Kepler Belt",   region: "",  icon: "🪐", color: "#e8a838", reqWarp: 0,
+    ambient: ["#e8a838", "#b36a1a"],
     lore: "The oldest asteroid field in the system. Every prospector starts here.",
     materials: [
       { id: "silicate", time: 10, amount: 1 },
@@ -68,7 +70,8 @@ const SECTORS = [
     ],
   },
   {
-    id: "cryon",   name: "Cryon Fields",  region: "Outer System · Sector 9",  icon: "❄️", color: "#4fc3f7", reqWarp: 1,
+    id: "cryon",   name: "Cryon Fields",  region: "",  icon: "❄️", color: "#4fc3f7", reqWarp: 1,
+    ambient: ["#4fc3f7", "#1a3f5c"],
     lore: "A frozen graveyard at the edge of habitable space. Beautiful and deadly.",
     materials: [
       { id: "cryon",   time: 22, amount: 1 },
@@ -77,6 +80,7 @@ const SECTORS = [
   },
   {
     id: "void",    name: "Outer Void",    region: "Deep Space · Sector 17",   icon: "🌑", color: "#9b59b6", reqWarp: 2,
+    ambient: ["#7b3fbf", "#1a0a2e"],
     lore: "Beyond charted space. Navigation here requires a modified warp drive and a steady nerve.",
     materials: [
       { id: "voidstone", time: 32, amount: 1 },
@@ -85,6 +89,7 @@ const SECTORS = [
   },
   {
     id: "neutron", name: "Neutron Rim",   region: "Dead Zone · Sector 31",    icon: "⭐", color: "#ff6b6b", reqWarp: 3,
+    ambient: ["#ff4040", "#6b1a1a"],
     lore: "The collapsed remnant of a star. Most pilots who come here don't come back.",
     materials: [
       { id: "neutrite",  time: 48, amount: 1 },
@@ -97,6 +102,7 @@ const SECTORS = [
 const HOME_LOCATION = {
   id: "home", name: "Abandoned Planet", region: "Outer Rim · Sektor 0 · Deine Heimatbasis",
   icon: "🏠", color: "#9b59b6", reqWarp: 0,
+  ambient: ["#c4763a", "#5a3070"],
 };
 const TRAVEL_SECS = 15;
 
@@ -142,13 +148,30 @@ const BUILDINGS = [
   },
   {
     id: "lab", name: "Research Lab", icon: "🔬", color: "#3fa7d6",
-    desc: "Erforsche verlorene Technologien alter Zivilisationen.",
-    available: false,
-    unlockLabel: null,
+    image: "/research_lab.png",
+    desc: "Unlock new technologies and expand your capabilities.",
+    available: true,
     levels: [
-      { level: 1, label: "Tech Tree", cost: null },
+      { level: 1, label: "1 research slot · speed 1×",   cost: null },
+      { level: 2, label: "2 research slots · speed 1.5×", cost: { credits: 200, ref_silicate: 5 } },
+      { level: 3, label: "3 research slots · speed 2×",   cost: { credits: 600, ferrite_plate: 4 } },
     ],
   },
+];
+
+const LAB_TECHNOLOGIES = [
+  { id: "warp_tech",    name: "Warp Drive",          icon: "🌀", color: "#5bc4e8", available: true,
+    desc: "Unlocks new star systems and exploration routes." },
+  { id: "adv_refining", name: "Adv. Refining",        icon: "⚗️", color: "#5ec26a", available: true,
+    desc: "Increases refining output by 25% per upgrade tier." },
+  { id: "cargo_tech",   name: "Cargo Expansion",      icon: "📦", color: "#e8a838", available: true,
+    desc: "Expands your ship's cargo capacity by 50 units per tier." },
+  { id: "combat",       name: "Combat Systems",        icon: "⚔️", color: "#e84040", available: false,
+    desc: "Unlocks combat encounters, weapon modules, and hostile sectors." },
+  { id: "deep_scan",    name: "Deep Scan",             icon: "🔭", color: "#a855f7", available: false,
+    desc: "Reveals hidden resources and anomalies in explored sectors." },
+  { id: "quantum",      name: "Quantum Processing",    icon: "⚡", color: "#f97316", available: false,
+    desc: "Reduces all research time by 20% per tier." },
 ];
 
 // Ship upgrades
@@ -275,7 +298,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function RowItem({ icon, name, locked, active, badge, onClick, animDelay = 0 }) {
+function RowItem({ icon, name, level, locked, active, badge, onClick, animDelay = 0 }) {
   return (
     <div
       onClick={onClick || undefined}
@@ -286,10 +309,13 @@ function RowItem({ icon, name, locked, active, badge, onClick, animDelay = 0 }) 
       <span style={{ fontSize: 18, width: 34, flexShrink: 0, lineHeight: 1 }}>{icon}</span>
       <span style={{ flex: 1, fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1, color: locked ? "rgba(255,255,255,0.38)" : "#fff", textTransform: "uppercase" }}>{name}</span>
       {active && !locked && (
-        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#5ec26a", boxShadow: "0 0 7px #5ec26a", animation: "pulseGlow 1.4s infinite", marginRight: badge ? 6 : 12, flexShrink: 0 }} />
+        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#5ec26a", boxShadow: "0 0 7px #5ec26a", animation: "pulseGlow 1.4s infinite", marginRight: 8, flexShrink: 0 }} />
       )}
       {badge && !locked && (
         <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 0.5, marginRight: 8, flexShrink: 0 }}>{badge}</span>
+      )}
+      {level !== undefined && !locked && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)", background: "rgba(0,200,240,0.1)", padding: "1px 6px", borderRadius: 3, marginRight: 8, flexShrink: 0 }}>LV {level}</span>
       )}
       {locked ? (
         <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 8px", borderRadius: 2, flexShrink: 0 }}>LOCKED</span>
@@ -300,47 +326,65 @@ function RowItem({ icon, name, locked, active, badge, onClick, animDelay = 0 }) 
   );
 }
 
-function BuildingCard({ building, level, active, badge, onClick, animDelay = 0 }) {
-  const isLocked      = !building.available;
-  const levelData     = building.levels?.find(l => l.level === level) || building.levels?.[0];
-  const hasNextLevel  = building.levels?.some(l => l.level === level + 1);
 
+function BuildingGridCard({ building, level, onClick }) {
+  const isLocked = !building.available;
   return (
     <div
       onClick={!isLocked && onClick ? onClick : undefined}
-      style={{ margin: "0 16px 10px", padding: "14px 16px", background: isLocked ? "rgba(3,8,18,0.35)" : "rgba(3,8,18,0.65)", border: `1px solid ${isLocked ? "rgba(255,255,255,0.06)" : building.color + "28"}`, borderLeft: `3px solid ${isLocked ? "rgba(255,255,255,0.08)" : building.color + "70"}`, borderRadius: 4, cursor: !isLocked && onClick ? "pointer" : "default", opacity: isLocked ? 0.4 : 1, transition: "background 0.15s", animation: `slideUp ${0.08 + animDelay}s ease` }}
-      onMouseEnter={e => { if (!isLocked && onClick) e.currentTarget.style.background = "rgba(91,196,232,0.05)"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = isLocked ? "rgba(3,8,18,0.35)" : "rgba(3,8,18,0.65)"; }}
+      style={{
+        position: "relative", aspectRatio: "1", borderRadius: 6, overflow: "hidden",
+        background: "rgba(3,8,18,0.75)",
+        border: `1px solid ${isLocked ? "rgba(255,255,255,0.07)" : building.color + "30"}`,
+        cursor: !isLocked && onClick ? "pointer" : "default",
+        opacity: isLocked ? 0.45 : 1,
+        display: "flex", flexDirection: "column",
+        transition: "opacity 0.15s",
+        animation: "fadeIn 0.2s ease",
+      }}
+      onMouseEnter={e => { if (!isLocked && onClick) e.currentTarget.style.opacity = "0.85"; }}
+      onMouseLeave={e => { e.currentTarget.style.opacity = isLocked ? "0.45" : "1"; }}
     >
-      {/* ── Header row ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
-        <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{building.icon}</span>
-        <span style={{ flex: 1, fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, color: isLocked ? "rgba(255,255,255,0.35)" : "#fff", textTransform: "uppercase" }}>{building.name}</span>
-        {active && !isLocked && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#5ec26a", boxShadow: "0 0 7px #5ec26a", animation: "pulseGlow 1.4s infinite", flexShrink: 0 }} />}
-        {badge && !isLocked && <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 0.5, flexShrink: 0 }}>{badge}</span>}
-        {isLocked ? (
-          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 8px", borderRadius: 2, flexShrink: 0 }}>LOCKED</span>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-            <span style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 1 }}>Lv. {level}</span>
-            {hasNextLevel && <span style={{ fontSize: 10, color: "rgba(91,196,232,0.35)", fontFamily: "'Barlow Condensed',sans-serif" }}>▲</span>}
-            <span style={{ fontSize: 14, color: "rgba(91,196,232,0.3)", fontFamily: "'Barlow Condensed',sans-serif" }}>→</span>
+      {/* ── Image / color placeholder ── */}
+      <div style={{
+        flex: 1, position: "relative",
+        background: building.image
+          ? `url(${building.image}) center/cover no-repeat`
+          : `linear-gradient(160deg, ${building.color}28 0%, ${building.color}0c 100%)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {!building.image && <span style={{ fontSize: 22, opacity: isLocked ? 0.35 : 0.65 }}>{building.icon}</span>}
+        {building.image && (
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
+        )}
+        {isLocked && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,0,0,0.25)",
+          }}>
+            <span style={{ fontSize: 14, opacity: 0.55 }}>🔒</span>
           </div>
         )}
       </div>
-      {/* ── Detail rows ── */}
-      <div style={{ paddingLeft: 30 }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.36)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.4 }}>{building.desc}</div>
-        {!isLocked && levelData && (
-          <div style={{ fontSize: 11, color: building.color + "99", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginTop: 4 }}>
-            Kapazität: {levelData.label}
-          </div>
-        )}
-        {isLocked && building.unlockLabel && (
-          <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(91,196,232,0.35)", letterSpacing: 0.5, marginTop: 4 }}>
-            // Unlock: {building.unlockLabel}
-          </div>
-        )}
+      {/* ── Footer ── */}
+      <div style={{
+        padding: "5px 7px 6px",
+        borderTop: `1px solid ${isLocked ? "rgba(255,255,255,0.05)" : building.color + "20"}`,
+        background: "rgba(0,0,0,0.35)",
+      }}>
+        <div style={{
+          fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600,
+          letterSpacing: 1, color: isLocked ? "rgba(255,255,255,0.3)" : "#fff",
+          textTransform: "uppercase", lineHeight: 1.2, marginBottom: 1,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {building.name}
+        </div>
+        <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1,
+          color: isLocked ? "rgba(255,255,255,0.18)" : building.color }}>
+          {isLocked ? "LOCKED" : `LV ${level}`}
+        </div>
       </div>
     </div>
   );
@@ -749,23 +793,7 @@ function RefineryScreen({ inventory, credits, refQueue, moduleLevel, onQueue, on
 // SHIP SCREEN  (Map + Tech Tree)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ShipScreen({ credits, inventory, installed, warpLevel, currentLocation, travelling, onBuy, onTravel }) {
-
-  const canAfford = (upg) => {
-    if (credits < (upg.cost.credits || 0)) return false;
-    for (const [k, v] of Object.entries(upg.cost)) { if (k !== "credits" && (inventory[k] || 0) < v) return false; }
-    return true;
-  };
-
-  const formatCost = (cost) => {
-    const parts = [];
-    if (cost.credits) parts.push(`${cost.credits} CR`);
-    for (const [k, v] of Object.entries(cost)) {
-      if (k === "credits") continue;
-      parts.push(`${v}× ${ITEMS[k]?.name || k}`);
-    }
-    return parts.join(" + ");
-  };
+function ShipScreen({ warpLevel, currentLocation, travelling, onTravel }) {
 
   // Current position data
   const isHome   = currentLocation === "home";
@@ -782,19 +810,6 @@ function ShipScreen({ credits, inventory, installed, warpLevel, currentLocation,
     if (s.reqWarp <= warpLevel + 1) destinations.push(s);
   });
   const hasMoreDest = SECTORS.some(s => s.id !== "home" && s.id !== currentLocation && s.reqWarp > warpLevel + 1);
-
-  // Tech tree — warp drives (primary, unlock new locations)
-  const warpUpgs       = SHIP_UPGRADES.filter(u => u.cat === "warp");
-  const installedWarp  = warpUpgs.filter(u => installed[u.id]);
-  const nextWarp       = warpUpgs.find(u => !installed[u.id] && Object.keys(u.req).every(k => installed[k]));
-  const hasLockedWarp  = warpUpgs.some(u => !installed[u.id] && Object.keys(u.req).some(k => !installed[k]));
-
-  // Secondary upgrades — cargo + module (show next installable only)
-  const secUpgs = ["cargo", "module"].map(cat => ({
-    cat,
-    next: SHIP_UPGRADES.filter(u => u.cat === cat).find(u => !installed[u.id] && Object.keys(u.req).every(k => installed[k])),
-    installedCount: SHIP_UPGRADES.filter(u => u.cat === cat && installed[u.id]).length,
-  })).filter(x => x.next);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease", paddingBottom: 32 }}>
@@ -907,89 +922,6 @@ function ShipScreen({ credits, inventory, installed, warpLevel, currentLocation,
         )}
       </div>
 
-      {/* ── Warp Drive Tech Tree ── */}
-      <SectionLabel>SCHIFF UPGRADES</SectionLabel>
-      <div style={{ paddingTop: 4 }}>
-        {/* Installed warp drives — compact rows */}
-        {installedWarp.map(u => (
-          <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", opacity: 0.4 }}>
-            <span style={{ fontSize: 14 }}>{u.icon}</span>
-            <span style={{ flex: 1, fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, color: "#5ec26a", textTransform: "uppercase" }}>{u.name}</span>
-            <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 1.5 }}>✓ INSTALLIERT</span>
-          </div>
-        ))}
-
-        {/* Next warp upgrade card */}
-        {nextWarp && (() => {
-          const affordable = canAfford(nextWarp);
-          return (
-            <div style={{ margin: "4px 16px 10px", padding: "14px 16px", background: "rgba(3,8,18,0.65)", border: "1px solid rgba(63,167,214,0.22)", borderLeft: "3px solid rgba(63,167,214,0.5)", borderRadius: 4, animation: "slideUp 0.12s ease" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <span style={{ fontSize: 22, lineHeight: 1 }}>{nextWarp.icon}</span>
-                <div>
-                  <div style={{ fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 3 }}>{nextWarp.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'Barlow',sans-serif" }}>{nextWarp.desc}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.45)", letterSpacing: 0.5, marginBottom: 10 }}>{formatCost(nextWarp.cost)}</div>
-              <button
-                onClick={affordable ? () => onBuy(nextWarp) : undefined}
-                className={affordable ? "btn-glow" : ""}
-                style={{ width: "100%", padding: "10px 0", background: affordable ? "rgba(63,167,214,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${affordable ? "rgba(63,167,214,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: affordable ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: affordable ? "pointer" : "default", transition: "all 0.15s" }}
-              >
-                {affordable ? "INSTALLIEREN" : "BAUEN – INSUFFICIENT RESOURCES"}
-              </button>
-            </div>
-          );
-        })()}
-
-        {/* Teaser for locked warp tiers */}
-        {hasLockedWarp && nextWarp && (
-          <div style={{ padding: "2px 18px 4px" }}>
-            <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.15)", letterSpacing: 1.5 }}>// Tier {nextWarp.effect.warp + 1}+ ausgeblendet bis installiert</span>
-          </div>
-        )}
-        {!nextWarp && warpUpgs.every(u => installed[u.id]) && (
-          <div style={{ padding: "8px 18px" }}>
-            <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 2 }}>// WARP DRIVE — MAX TIER</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── Secondary Upgrades (Cargo + Module) ── */}
-      {secUpgs.length > 0 && (
-        <>
-          <SectionLabel>WEITERE UPGRADES</SectionLabel>
-          <div style={{ paddingTop: 4 }}>
-            {secUpgs.map(({ cat, next, installedCount }) => {
-              const affordable = canAfford(next);
-              const catColor   = cat === "cargo" ? "#e8a838" : "#5ec26a";
-              return (
-                <div key={cat} style={{ margin: "0 16px 10px", padding: "12px 14px", background: "rgba(3,8,18,0.55)", border: `1px solid ${catColor}18`, borderLeft: `3px solid ${catColor}40`, borderRadius: 3, animation: "slideUp 0.15s ease" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 18 }}>{next.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1, color: "#fff", textTransform: "uppercase" }}>{next.name}</div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Barlow',sans-serif" }}>{next.desc}</div>
-                    </div>
-                    {installedCount > 0 && (
-                      <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: catColor, letterSpacing: 1, flexShrink: 0 }}>LV {installedCount}</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.38)", letterSpacing: 0.5, marginBottom: 8 }}>{formatCost(next.cost)}</div>
-                  <button
-                    onClick={affordable ? () => onBuy(next) : undefined}
-                    className={affordable ? "btn-glow" : ""}
-                    style={{ width: "100%", padding: "8px 0", background: affordable ? catColor + "10" : "rgba(255,255,255,0.02)", border: `1px solid ${affordable ? catColor + "40" : "rgba(255,255,255,0.07)"}`, borderRadius: 2, color: affordable ? catColor : "rgba(255,255,255,0.18)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: affordable ? "pointer" : "default", transition: "all 0.15s" }}
-                  >
-                    {affordable ? "INSTALLIEREN" : "INSUFFICIENT RESOURCES"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -1013,10 +945,13 @@ const PROFIL_SKILLS = [
   { id: "combat",    icon: "⚔", name: "Combat",    color: "#e05252", locked: true },
 ];
 
-function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocation, onNavigate }) {
+function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocation, miningXP, salvagingXP, refiningXP, onNavigate }) {
   const isMiningActive    = !!mining;
   const isSalvagingActive = !!salvaging;
   const isRefiningActive  = refQueue.length > 0;
+  const miningLevel    = getLevel(miningXP   || 0);
+  const salvagingLevel = getLevel(salvagingXP || 0);
+  const refiningLevel  = getLevel(refiningXP  || 0);
 
   // Refinery badge: "läuft · Xs"
   const activeRefRecipe = isRefiningActive ? RECIPES.find(r => r.id === refQueue[0]?.recipeId) : null;
@@ -1029,8 +964,8 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
     if (id === "refining")  onNavigate("refiningDetail");
   };
 
-  // 1-away rule: show all available buildings + the first locked one only
-  const availableBuildings = BUILDINGS.filter(b => b.available);
+  // Show all available buildings except refinery (handled as a skill/activity) + first locked teaser
+  const availableBuildings = BUILDINGS.filter(b => b.available && b.id !== "refinery");
   const firstLocked        = BUILDINGS.find(b => !b.available);
   const hasMoreHidden      = BUILDINGS.filter(b => !b.available).length > 1;
   const visibleBuildings   = firstLocked ? [...availableBuildings, firstLocked] : availableBuildings;
@@ -1047,14 +982,7 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
 
       {/* ── Location header / Hero Banner ── */}
       {isHome ? (
-        <div style={{ padding: "16px 16px 0" }}>
-          <HeroBanner variant="abandoned" icon="🏠" name="Abandoned Planet" />
-          <div style={{ marginTop: -12, marginBottom: 8, padding: "0 2px" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5 }}>
-              {HOME_LOCATION.region}
-            </div>
-          </div>
-        </div>
+        <HeroBanner variant="abandoned" name="Abandoned Planet" />
       ) : (
         <div style={{ padding: "20px 18px 16px", background: "linear-gradient(180deg, rgba(91,196,232,0.06) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ fontSize: 9, letterSpacing: 3, color: "rgba(91,196,232,0.38)", fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", marginBottom: 8 }}>
@@ -1069,17 +997,19 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
         </div>
       )}
 
-      {/* ── Skills ── */}
-      <SectionLabel>SKILLS</SectionLabel>
+      {/* ── Activities ── */}
+      <SectionLabel>ACTIVITIES</SectionLabel>
       {ORT_SKILLS.map((skill, i) => {
         const active   = (skill.id === "mining" && isMiningActive) || (skill.id === "salvaging" && isSalvagingActive) || (skill.id === "refining" && isRefiningActive);
         const isLocked = !!skill.locked;
         const badge    = skill.id === "refining" ? refBadge : null;
+        const level    = skill.id === "mining" ? miningLevel : skill.id === "salvaging" ? salvagingLevel : skill.id === "refining" ? refiningLevel : 1;
         return (
           <RowItem
             key={skill.id}
             icon={skill.icon}
             name={skill.name}
+            level={level}
             locked={isLocked}
             active={active}
             badge={badge}
@@ -1091,31 +1021,156 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
 
       {/* ── Buildings ── */}
       <SectionLabel>GEBÄUDE</SectionLabel>
-      <div style={{ paddingTop: 8, paddingBottom: 4 }}>
-        {visibleBuildings.map((b, i) => {
-          const active = b.id === "refinery" && isRefiningActive;
-          const badge  = b.id === "refinery" ? refBadge : null;
-          const level  = buildingLevels[b.id] || 1;
-          return (
-            <BuildingCard
-              key={b.id}
-              building={b}
-              level={level}
-              active={active}
-              badge={badge}
-              onClick={b.available ? () => onNavigate("buildingDetail", b.id) : null}
-              animDelay={(ORT_SKILLS.length + i) * 0.05}
-            />
-          );
-        })}
-        {hasMoreHidden && (
-          <div style={{ padding: "6px 18px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.18)", letterSpacing: 1.5, whiteSpace: "nowrap" }}>// Weitere Gebäude freischaltbar</span>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-          </div>
-        )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "8px 16px 16px" }}>
+        {visibleBuildings.map((b) => (
+          <BuildingGridCard
+            key={b.id}
+            building={b}
+            level={buildingLevels[b.id] || 1}
+            onClick={b.available ? () => onNavigate("buildingDetail", b.id) : null}
+          />
+        ))}
       </div>
+      {hasMoreHidden && (
+        <div style={{ padding: "0 18px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.18)", letterSpacing: 1.5, whiteSpace: "nowrap" }}>// Weitere Gebäude freischaltbar</span>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LAB SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
+  const [selectedTech, setSelectedTech] = useState(null);
+
+  const lab         = BUILDINGS.find(b => b.id === "lab");
+  const level       = buildingLevels?.["lab"] || 1;
+  const currentData = lab.levels?.find(l => l.level === level) || lab.levels?.[0];
+  const nextData    = lab.levels?.find(l => l.level === level + 1);
+
+  const formatCost = (cost) => {
+    if (!cost) return "—";
+    const parts = [];
+    if (cost.credits) parts.push(`${cost.credits} CR`);
+    for (const [k, v] of Object.entries(cost)) {
+      if (k === "credits") continue;
+      const item = ITEMS[k];
+      parts.push(`${v}× ${item?.name || k}`);
+    }
+    return parts.join(" + ");
+  };
+
+  const canAfford = nextData?.cost ? (() => {
+    const cost = nextData.cost;
+    if (cost.credits && (credits || 0) < cost.credits) return false;
+    for (const [k, v] of Object.entries(cost)) {
+      if (k !== "credits" && (inventory?.[k] || 0) < v) return false;
+    }
+    return true;
+  })() : false;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
+
+      {/* ── Section 1: Building image header ── */}
+      <div style={{ position: "relative", width: "100%", height: 130, flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/research_lab.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
+      </div>
+      <div style={{ padding: "14px 18px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ fontSize: 20, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
+          Research Lab
+        </div>
+        <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 1, marginBottom: 8 }}>
+          Level {level}
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.5 }}>
+          Increases research speed and unlocks advanced technology tiers.
+        </div>
+      </div>
+
+      {/* ── Section 2: Building upgrade ── */}
+      {nextData ? (
+        <>
+          <SectionLabel>UPGRADE TO LV. {level + 1}</SectionLabel>
+          <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
+              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.65)", letterSpacing: 0.5 }}>{formatCost(nextData.cost)}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
+            </div>
+            <button
+              onClick={canAfford ? onUpgrade : undefined}
+              className={canAfford ? "btn-glow" : ""}
+              style={{ marginTop: 6, padding: "11px 0", background: canAfford ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAfford ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAfford ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAfford ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+            >
+              {canAfford ? `UPGRADE → LV. ${level + 1}` : "UPGRADE – INSUFFICIENT RESOURCES"}
+            </button>
+            {currentData && (
+              <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(91,196,232,0.4)", letterSpacing: 0.5 }}>
+                Current: {currentData.label}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 3, height: 10, background: "#3fa7d6", opacity: 0.5, borderRadius: 1 }} />
+          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL REACHED</span>
+        </div>
+      )}
+
+      {/* ── Section 3: Technologies grid ── */}
+      <SectionLabel>TECHNOLOGIES</SectionLabel>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "8px 16px 24px" }}>
+        {LAB_TECHNOLOGIES.map(tech => (
+          <BuildingGridCard
+            key={tech.id}
+            building={tech}
+            level={1}
+            onClick={tech.available ? () => setSelectedTech(tech) : null}
+          />
+        ))}
+      </div>
+
+      {/* ── Tech detail modal ── */}
+      {selectedTech && (
+        <div className="modal-overlay" onClick={() => setSelectedTech(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span>{selectedTech.icon} {selectedTech.name.toUpperCase()}</span>
+              <button className="modal-close" onClick={() => setSelectedTech(null)}>✕</button>
+            </div>
+            <div style={{ padding: "14px 16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.6 }}>
+                {selectedTech.desc}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                  <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
+                  <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.55)" }}>— (placeholder)</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                  <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Effect</span>
+                  <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: selectedTech.color }}>— (placeholder)</span>
+                </div>
+              </div>
+              <button style={{ padding: "11px 0", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
+                RESEARCH – COMING SOON
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -1307,18 +1362,15 @@ function ResourceModal({ resource, onStart, onClose, cargoFree }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MINING SKILL SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function MiningSkillScreen({ miningXP, warpLevel, mining, cargo, maxCargo, onStartMining }) {
+function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining }) {
   const level     = getLevel(miningXP);
   const cargoFull = cargo >= maxCargo;
   const cargoFree = maxCargo - cargo;
   const [modalResource, setModalResource] = useState(null);
 
-  // Flat list of all material+sector entries (1-away rule)
-  const entries = [];
-  SECTORS.forEach(sector => {
-    if (sector.reqWarp > warpLevel + 1) return;
-    sector.materials.forEach(matRef => entries.push({ sector, matRef, locked: sector.reqWarp > warpLevel }));
-  });
+  // Only show home sector (Ruined Stone)
+  const homeSector = SECTORS.find(s => s.id === "home");
+  const entries = homeSector ? homeSector.materials.map(matRef => ({ sector: homeSector, matRef, locked: false })) : [];
 
   const openModal = (sector, matRef, item) => {
     setModalResource({
@@ -1334,9 +1386,7 @@ function MiningSkillScreen({ miningXP, warpLevel, mining, cargo, maxCargo, onSta
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
-      <div style={{ padding: "16px 16px 0" }}>
-        <HeroBanner variant="mining" icon="⛏" name="Mining" level={level} xp={miningXP} />
-      </div>
+      <HeroBanner variant="mining" icon="⛏" name="Mining" level={level} xp={miningXP} />
 
       {cargoFull && (
         <div style={{ margin: "8px 16px 0", padding: "8px 12px", background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.22)", borderLeft: "3px solid rgba(232,168,56,0.55)", borderRadius: 3, fontSize: 11, color: "#e8a838", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>
@@ -1428,9 +1478,7 @@ function SalvagingSkillScreen({ salvagingXP, salvaging, cargo, maxCargo, onStart
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
-      <div style={{ padding: "16px 16px 0" }}>
-        <HeroBanner variant="salvaging" icon="🔩" name="Salvaging" level={level} xp={salvagingXP} />
-      </div>
+      <HeroBanner variant="salvaging" icon="🔩" name="Salvaging" level={level} xp={salvagingXP} />
 
       {cargoFull && (
         <div style={{ margin: "8px 16px 0", padding: "8px 12px", background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.22)", borderLeft: "3px solid rgba(232,168,56,0.55)", borderRadius: 3, fontSize: 11, color: "#e8a838", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>
@@ -1507,9 +1555,7 @@ function RefiningSkillScreen({ inventory, refQueue, moduleLevel, onQueue, onSell
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
-      <div style={{ padding: "16px 16px 0" }}>
-        <HeroBanner variant="refining" icon="⚗" name="Refining" extra="· Passiv" />
-      </div>
+      <HeroBanner variant="refining" icon="⚗" name="Refining" extra="· Passiv" />
 
       {activeRecipe && activeItem && (
         <div style={{ margin: "10px 16px 0", padding: "10px 12px", background: "rgba(94,194,106,0.06)", border: "1px solid rgba(94,194,106,0.2)", borderLeft: "3px solid rgba(94,194,106,0.5)", borderRadius: 3 }}>
@@ -1590,9 +1636,7 @@ function RefiningSkillScreen({ inventory, refQueue, moduleLevel, onQueue, onSell
 function CraftingSkillScreen() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
-      <div style={{ padding: "16px 16px 0" }}>
-        <HeroBanner variant="crafting" icon="🔧" name="Crafting" level={1} />
-      </div>
+      <HeroBanner variant="crafting" icon="🔧" name="Crafting" level={1} />
       <SectionLabel>REZEPTE</SectionLabel>
       {CRAFT_RECIPES.map((recipe, i) => {
         const item    = ITEMS[recipe.id];
@@ -2132,6 +2176,7 @@ export default function App() {
   const [credits, setCredits]     = useState(0);
   const [miningXP, setMiningXP]       = useState(0);
   const [salvagingXP, setSalvagingXP] = useState(0);
+  const [refiningXP, setRefiningXP]   = useState(0);
   const [cargo, setCargo]             = useState(0);
   const [installed, setInstalled]     = useState({});
   const [mining, setMining]               = useState(null);
@@ -2172,6 +2217,7 @@ export default function App() {
       if (s.credits)        setCredits(s.credits);
       if (s.miningXP)       setMiningXP(s.miningXP);
       if (s.salvagingXP)    setSalvagingXP(s.salvagingXP);
+      if (s.refiningXP)     setRefiningXP(s.refiningXP);
       if (s.cargo)          setCargo(s.cargo);
       if (s.installed)      setInstalled(s.installed);
       if (s.buildingLevels) setBuildingLevels(s.buildingLevels);
@@ -2183,10 +2229,10 @@ export default function App() {
     if (!session?.user) return;
     await supabase.from("game_saves").upsert({
       user_id: session.user.id,
-      save_data: { inventory, credits, miningXP, salvagingXP, cargo, installed, buildingLevels },
+      save_data: { inventory, credits, miningXP, salvagingXP, refiningXP, cargo, installed, buildingLevels },
       updated_at: new Date().toISOString()
     });
-  }, [session, inventory, credits, miningXP, salvagingXP, cargo, installed]);
+  }, [session, inventory, credits, miningXP, salvagingXP, refiningXP, cargo, installed]);
 
   useEffect(() => {
     if (!session) return;
@@ -2199,6 +2245,10 @@ export default function App() {
   const maxCargo    = 20 + SHIP_UPGRADES.filter(u => u.cat === "cargo" && installed[u.id]).reduce((a, u) => a + u.effect.cargo, 0);
   const miningLevel = getLevel(miningXP);
   const totalLevel  = miningLevel;
+
+  // Ambient colors for the current location
+  const currentSector = SECTORS.find(s => s.id === currentLocation) || HOME_LOCATION;
+  const [ambC1, ambC2] = currentSector.ambient || ["#5bc4e8", "#5bc4e8"];
   const rank        = getRank(totalLevel);
 
   const activeTask = (() => {
@@ -2345,6 +2395,11 @@ export default function App() {
         if (p >= 1) {
           const item = ITEMS[recipe.id];
           setInventory(inv => ({ ...inv, [recipe.id]: (inv[recipe.id] || 0) + 1 }));
+          setRefiningXP(x => {
+            const next = x + recipe.time;
+            if (getLevel(next) > getLevel(x)) addToast(`Refining reached Level ${getLevel(next)}!`, "🎉", "#5ec26a");
+            return next;
+          });
           addLog(`⚗️ ${item?.icon} ${item?.name} completed`);
           if (rest.length === 0) addToast("Refinery queue complete.", "⚗️", "#5ec26a");
           return rest;
@@ -2456,7 +2511,7 @@ export default function App() {
 
   const BOTTOM_NAV = [
     { id: "ort",    label: "ORT",    icon: "📍" },
-    { id: "ship",   label: "SHIP",   icon: "🚀" },
+    { id: "ship",   label: "GALAXY", icon: "🌌" },
     { id: "profil", label: "PROFIL", icon: "👤" },
   ];
 
@@ -2490,6 +2545,8 @@ export default function App() {
 
       {/* Background */}
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, background: "linear-gradient(160deg, #0a1628 0%, #06080f 45%, #110820 100%)" }}>
+        {/* Ambient location color bleed */}
+        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 45% at 30% 0%, ${ambC1}22 0%, transparent 70%), radial-gradient(ellipse 65% 38% at 75% 0%, ${ambC2}1a 0%, transparent 65%)`, transition: "background 1.5s ease", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: "-10%", left: "50%", width: "80%", height: "60%", background: "radial-gradient(ellipse, rgba(91,196,232,0.10) 0%, transparent 65%)", animation: "nebulaDrift 18s ease-in-out infinite" }} />
         <div style={{ position: "absolute", bottom: "5%", right: "5%", width: "50%", height: "50%", background: "radial-gradient(ellipse, rgba(110,60,220,0.09) 0%, transparent 70%)", animation: "nebulaDrift 24s ease-in-out infinite reverse" }} />
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(91,196,232,0.055) 1px, transparent 1px)", backgroundSize: "28px 28px", animation: "gridDrift 80s linear infinite" }} />
@@ -2591,7 +2648,7 @@ export default function App() {
               onQueue={queueRecipe} onSell={sellAll} />
           )}
           {tab === "ort" && screen === "miningDetail" && (
-            <MiningSkillScreen miningXP={miningXP} warpLevel={warpLevel} mining={mining}
+            <MiningSkillScreen miningXP={miningXP} mining={mining}
               cargo={cargo} maxCargo={maxCargo} onStartMining={startMining} />
           )}
           {tab === "ort" && screen === "refiningDetail" && (
@@ -2603,7 +2660,15 @@ export default function App() {
               cargo={cargo} maxCargo={maxCargo} onStartSalvaging={startSalvaging} />
           )}
           {tab === "ort" && screen === "craftingDetail" && <CraftingSkillScreen />}
-          {tab === "ort" && screen === "buildingDetail" && screenData && (
+          {tab === "ort" && screen === "buildingDetail" && screenData === "lab" && (
+            <LabScreen
+              buildingLevels={buildingLevels}
+              inventory={inventory}
+              credits={credits}
+              onUpgrade={() => upgradeBuilding("lab")}
+            />
+          )}
+          {tab === "ort" && screen === "buildingDetail" && screenData && screenData !== "lab" && (
             <BuildingDetailScreen
               buildingId={screenData} buildingLevels={buildingLevels}
               inventory={inventory} credits={credits}
@@ -2613,7 +2678,7 @@ export default function App() {
           {tab === "ort" && !screen && (
             <OrtScreen
               mining={mining} salvaging={salvaging} refQueue={refQueue} buildingLevels={buildingLevels}
-              currentLocation={currentLocation}
+              currentLocation={currentLocation} miningXP={miningXP} salvagingXP={salvagingXP} refiningXP={refiningXP}
               onNavigate={(screenName, data) => { setNavDir("fwd"); setScreen(screenName); if (data !== undefined) setScreenData(data); }}
             />
           )}
