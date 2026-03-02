@@ -2088,7 +2088,7 @@ function LoginScreen({ onBeforeLogin }) {
       options: { emailRedirectTo: window.location.origin }
     });
     setLoading(false);
-    if (authErr) setError("Login fehlgeschlagen. Versuche es erneut.");
+    if (authErr) setError(authErr.message || "Login fehlgeschlagen. Versuche es erneut.");
     else setSent(true);
   };
 
@@ -2713,6 +2713,7 @@ export default function App() {
               <span style={{ color: "rgba(255,255,255,0.18)", fontSize: 10 }}>·</span>
               <span style={{ fontSize: 11, color: "#f1c40f", letterSpacing: 0.5 }}>{fmt(credits)} CR</span>
             </div>
+            <button onClick={() => saveGame().then(() => addToast("Gespeichert!", "💾", "#5ec26a"))} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)", borderRadius: 2, padding: "4px 8px", fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", cursor: "pointer", letterSpacing: 1 }}>💾</button>
             <button onClick={() => { saveGame(); supabase.auth.signOut(); }} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)", borderRadius: 2, padding: "4px 8px", fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", cursor: "pointer", letterSpacing: 1 }}>⏻</button>
           </div>
         </div>
