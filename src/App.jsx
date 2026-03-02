@@ -1972,6 +1972,25 @@ function InventoryOverlay({ inventory, onClose }) {
   );
 }
 
+function CallsignInput({ onConfirm }) {
+  const [val, setVal] = useState("");
+  const valid = val.trim().length >= 2;
+  return (
+    <>
+      <input type="text" placeholder="Commander Name..." value={val} maxLength={20}
+        autoFocus
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && valid && onConfirm(val.trim())}
+        style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", background: "rgba(255,255,255,0.07)", border: valid ? "1px solid rgba(91,196,232,0.4)" : "1px solid rgba(255,255,255,0.16)", borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif", marginBottom: 10, outline: "none" }}
+      />
+      <button onClick={() => valid && onConfirm(val.trim())} disabled={!valid}
+        style={{ width: "100%", padding: "12px", background: valid ? "rgba(91,196,232,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${valid ? "rgba(91,196,232,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: valid ? "#7dd4f0" : "rgba(255,255,255,0.25)", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, cursor: valid ? "pointer" : "default", transition: "all 0.15s" }}>
+        CONFIRM
+      </button>
+    </>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // OFFLINE SUMMARY MODAL
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2049,12 +2068,12 @@ function OfflineSummaryModal({ summary, username, onDismiss }) {
 // LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 function LoginScreen({ onBeforeLogin }) {
-  const [username, setUsername]   = useState("");
-  const [email, setEmail]         = useState("");
-  const [sent, setSent]           = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [showEmail, setShowEmail] = useState(false);
-  const [error, setError]         = useState("");
+  const [tab, setTab]         = useState("email"); // "email" | "guest"
+  const [username, setUsername] = useState("");
+  const [email, setEmail]     = useState("");
+  const [sent, setSent]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
 
   const usernameValid = username.trim().length >= 2;
 
@@ -2065,6 +2084,19 @@ function LoginScreen({ onBeforeLogin }) {
     "Trade rare cosmic resources",
   ];
 
+  const handleEmailLogin = async () => {
+    if (!email) { setError("Bitte gib deine E-Mail-Adresse ein."); return; }
+    setLoading(true);
+    setError("");
+    const { error: authErr } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    setLoading(false);
+    if (authErr) setError(authErr.message || "Login fehlgeschlagen. Versuche es erneut.");
+    else setSent(true);
+  };
+
   const handleGuest = async () => {
     if (!usernameValid) { setError("Bitte gib einen Benutzernamen ein (min. 2 Zeichen)."); return; }
     setLoading(true);
@@ -2073,23 +2105,6 @@ function LoginScreen({ onBeforeLogin }) {
     const { error: authErr } = await supabase.auth.signInAnonymously();
     setLoading(false);
     if (authErr) setError("Gastzugang momentan nicht verfügbar.");
-  };
-
-  const handleEmailLogin = async () => {
-    if (!usernameValid) { setError("Bitte gib zuerst einen Benutzernamen ein."); return; }
-    if (!email) { setError("Bitte gib deine E-Mail-Adresse ein."); return; }
-    setLoading(true);
-    setError("");
-    onBeforeLogin(username.trim());
-    // Persist across the magic-link page reload
-    localStorage.setItem("vf_pending_username", username.trim());
-    const { error: authErr } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin }
-    });
-    setLoading(false);
-    if (authErr) setError(authErr.message || "Login fehlgeschlagen. Versuche es erneut.");
-    else setSent(true);
   };
 
   const inputStyle = {
@@ -2123,75 +2138,61 @@ function LoginScreen({ onBeforeLogin }) {
             <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
             <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10, color: "#fff" }}>Check your inbox</div>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, margin: 0 }}>
-              Login-Link gesendet an <strong style={{ color: "#fff" }}>{email}</strong>.<br />Klick den Link, um als <strong style={{ color: "#5bc4e8" }}>{username}</strong> zu spielen.
+              We sent a login link to <strong style={{ color: "#fff" }}>{email}</strong>.<br />Click it to enter the game.
             </p>
           </div>
         ) : (
-          <div style={{ background: "rgba(5,12,25,0.92)", border: "1px solid rgba(91,196,232,0.2)", borderTop: "2px solid rgba(91,196,232,0.5)", borderRadius: 16, padding: "26px 24px", boxShadow: "0 0 60px rgba(91,196,232,0.07)" }}>
+          <div style={{ background: "rgba(5,12,25,0.92)", border: "1px solid rgba(91,196,232,0.2)", borderTop: "2px solid rgba(91,196,232,0.5)", borderRadius: 16, overflow: "hidden", boxShadow: "0 0 60px rgba(91,196,232,0.07)" }}>
 
-            {/* Username field — always required */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 2.5, color: "rgba(91,196,232,0.55)", marginBottom: 8 }}>CHOOSE YOUR CALLSIGN</div>
-              <input
-                type="text"
-                placeholder="Commander name..."
-                value={username}
-                maxLength={20}
-                onChange={e => { setUsername(e.target.value); setError(""); }}
-                onKeyDown={e => e.key === "Enter" && !showEmail && handleGuest()}
-                style={{ ...inputStyle, border: usernameValid ? "1px solid rgba(91,196,232,0.35)" : "1px solid rgba(255,255,255,0.16)" }}
-                autoFocus
-              />
+            {/* Tabs */}
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              {[{ id: "email", label: "WITH EMAIL" }, { id: "guest", label: "AS GUEST" }].map(t => (
+                <button key={t.id} onClick={() => { setTab(t.id); setError(""); }}
+                  style={{ flex: 1, padding: "13px", background: tab === t.id ? "rgba(91,196,232,0.08)" : "transparent", border: "none", borderBottom: `2px solid ${tab === t.id ? "#5bc4e8" : "transparent"}`, color: tab === t.id ? "#5bc4e8" : "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", transition: "all 0.15s", marginBottom: -1 }}>
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            {/* Divider */}
-            <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "0 0 18px" }} />
+            <div style={{ padding: "24px" }}>
+              {/* Fixed-height description — same for both tabs to prevent layout jump */}
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", marginBottom: 14, lineHeight: 1.5, height: "2em" }}>
+                {tab === "email" ? "Save progress permanently. No password needed." : "Play instantly without an account."}
+              </div>
 
-            {showEmail ? (
-              <>
-                <button onClick={() => { setShowEmail(false); setError(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, cursor: "pointer", padding: 0, marginBottom: 14 }}>← BACK</button>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Barlow',sans-serif", marginBottom: 12 }}>
-                  Spielstand wird dauerhaft gespeichert. Kein Passwort nötig.
-                </div>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setError(""); }}
-                  onKeyDown={e => e.key === "Enter" && handleEmailLogin()}
-                  style={inputStyle}
-                />
-                <button onClick={handleEmailLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.15)", border: "1px solid rgba(91,196,232,0.4)", borderRadius: 8, color: "#7dd4f0", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
-                  {loading ? "SENDE LINK..." : "LOGIN-LINK SENDEN"}
-                </button>
-              </>
-            ) : (
-              <>
-                {/* Guest CTA */}
-                <button
-                  onClick={handleGuest}
-                  disabled={loading}
-                  className="cta-pulse"
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.animationPlayState = "paused"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.animationPlayState = "running"; }}
-                  style={{ width: "100%", padding: "16px 24px", background: "linear-gradient(135deg, rgba(91,196,232,0.28), rgba(91,196,232,0.11))", border: "1px solid rgba(91,196,232,0.55)", borderRadius: 10, color: "#c8eef8", fontSize: 15, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", opacity: loading ? 0.6 : 1, transition: "transform 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 12 }}
-                >
-                  <span>{loading ? "STARTE..." : "ALS GAST SPIELEN"}</span>
-                  <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: 1, color: "rgba(200,238,248,0.65)" }}>Kein Account erforderlich</span>
-                </button>
-
-                {/* Email secondary */}
-                <div style={{ textAlign: "center" }}>
-                  <button onClick={() => { setShowEmail(true); setError(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "'Barlow',sans-serif", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.25)", padding: 0 }}>
-                    Fortschritt dauerhaft speichern? Mit E-Mail einloggen.
+              {tab === "email" ? (
+                <>
+                  <input type="email" placeholder="you@example.com" value={email}
+                    onChange={e => { setEmail(e.target.value); setError(""); }}
+                    onKeyDown={e => e.key === "Enter" && handleEmailLogin()}
+                    style={inputStyle} autoFocus={tab === "email"}
+                  />
+                  <button onClick={handleEmailLogin} disabled={loading}
+                    style={{ width: "100%", padding: "13px", background: "rgba(91,196,232,0.15)", border: "1px solid rgba(91,196,232,0.4)", borderRadius: 8, color: "#7dd4f0", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
+                    {loading ? "SENDING..." : "SEND LOGIN LINK"}
                   </button>
-                </div>
-              </>
-            )}
+                </>
+              ) : (
+                <>
+                  <input type="text" placeholder="Your commander name..." value={username} maxLength={20}
+                    onChange={e => { setUsername(e.target.value); setError(""); }}
+                    onKeyDown={e => e.key === "Enter" && handleGuest()}
+                    style={{ ...inputStyle, border: usernameValid ? "1px solid rgba(91,196,232,0.35)" : "1px solid rgba(255,255,255,0.16)" }}
+                    autoFocus={tab === "guest"}
+                  />
+                  <button onClick={handleGuest} disabled={loading} className="cta-pulse"
+                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.animationPlayState = "paused"; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.animationPlayState = "running"; }}
+                    style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg, rgba(91,196,232,0.28), rgba(91,196,232,0.11))", border: "1px solid rgba(91,196,232,0.55)", borderRadius: 8, color: "#c8eef8", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", opacity: loading ? 0.6 : 1, transition: "transform 0.15s" }}>
+                    {loading ? "LAUNCHING..." : "PLAY NOW"}
+                  </button>
+                </>
+              )}
 
-            {error && (
-              <div style={{ marginTop: 10, fontSize: 12, color: "#ff8080", fontFamily: "'Barlow',sans-serif", textAlign: "center" }}>{error}</div>
-            )}
+              {error && (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#ff8080", fontFamily: "'Barlow',sans-serif", textAlign: "center" }}>{error}</div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -2683,6 +2684,16 @@ export default function App() {
           username={username}
           onDismiss={() => setOfflineSummary(null)}
         />
+      )}
+      {!offlineSummary && username === "Commander" && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ width: "100%", maxWidth: 340, background: "rgba(5,12,25,0.98)", border: "1px solid rgba(91,196,232,0.25)", borderTop: "2px solid rgba(91,196,232,0.6)", borderRadius: 12, padding: "28px 24px", boxShadow: "0 0 80px rgba(91,196,232,0.1)" }}>
+            <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 3, color: "rgba(91,196,232,0.5)", marginBottom: 10 }}>// WELCOME</div>
+            <div style={{ fontSize: 18, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, color: "#fff", marginBottom: 6 }}>Choose your callsign</div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", marginBottom: 18, marginTop: 0 }}>What should your commander be called?</p>
+            <CallsignInput onConfirm={(name) => { setUsername(name); saveGame(); }} />
+          </div>
+        </div>
       )}
 
       {/* Background */}
