@@ -43,7 +43,6 @@ const ITEMS = {
   ruined_stone: { name: "Raw Stone",         icon: "🪨", rarity: "common",    category: "raw",      flavor: "Brocken eingestürzter Strukturen. Überall hier." },
   // Salvaging materials
   scrap_metal:  { name: "Scrap Metal",      icon: "🔩", rarity: "common",    category: "raw",      flavor: "Salvaged from derelict hulls. Worth more melted down than intact." },
-  wiring:       { name: "Frayed Wiring",    icon: "🔌", rarity: "common",    category: "raw",      flavor: "Zerfranste Kabel aus dem alten Kontrollzentrum." },
   // Crafted goods (future skill)
   repair_kit:   { name: "Basic Repair Kit", icon: "🛠", rarity: "common",    category: "crafted",  flavor: "Field repair kit. Better than nothing. Barely." },
   shield_cell:  { name: "Shield Cell",      icon: "🛡", rarity: "uncommon",  category: "crafted",  flavor: "Energy-absorbing cell. Standard issue on fighting ships." },
@@ -117,7 +116,6 @@ const RECIPES = [
 
 const SALVAGING_MATS = [
   { id: "scrap_metal", time: 10, amount: 1 },
-  { id: "wiring",      time: 14, amount: 1 },
 ];
 
 const CRAFT_RECIPES = [
@@ -128,22 +126,33 @@ const CRAFT_RECIPES = [
 // Buildings (extensible)
 const BUILDINGS = [
   {
-    id: "refinery", name: "Raffinerie", icon: "🏭", color: "#5ec26a",
-    desc: "Verarbeitet Rohmaterialien zu handelbaren Gütern.",
+    id: "refinery", name: "Refinery", icon: "🏭", color: "#5ec26a",
+    desc: "Processes raw materials into tradeable goods.",
     available: true,
     levels: [
-      { level: 1, label: "1 Job parallel",  cost: null },
-      { level: 2, label: "2 Jobs parallel", cost: { credits: 200, ref_silicate: 5 } },
-      { level: 3, label: "3 Jobs parallel", cost: { credits: 600, ferrite_plate: 4, cryon_cell: 1 } },
+      { level: 1, label: "1 job parallel",  cost: null },
+      { level: 2, label: "2 jobs parallel", cost: { credits: 200, ref_silicate: 5 } },
+      { level: 3, label: "3 jobs parallel", cost: { credits: 600, ferrite_plate: 4, cryon_cell: 1 } },
     ],
   },
   {
-    id: "market", name: "Market", icon: "💰", color: "#e8a838",
-    desc: "Verkaufe Ressourcen · Handle Waren.",
-    available: false,
-    unlockLabel: "50× Refined Silicate",
+    id: "storage", name: "Storage Facility", icon: "📦", color: "#e8a838",
+    image: "/storage_facility.png",
+    desc: "Expands your inventory capacity for resources and goods.",
+    available: true,
     levels: [
-      { level: 1, label: "Basis-Marktplatz", cost: null },
+      { level: 1, label: "50 slot capacity", cost: { ruined_stone: 20, scrap_metal: 5 } },
+      { level: 2, label: "75 slot capacity", cost: { credits: 100, ruined_stone: 40, scrap_metal: 15 } },
+    ],
+  },
+  {
+    id: "command_post", name: "Command Post", icon: "📡", color: "#a78bfa",
+    desc: "Central coordination hub. Unlocks advanced planetary operations.",
+    available: false,
+    unlockRequires: { building: "storage", level: 2 },
+    unlockLabel: "Requires Storage Facility Lv. 2",
+    levels: [
+      { level: 1, label: "Basic operations", cost: { ruined_stone: 80, scrap_metal: 40, credits: 150 } },
     ],
   },
   {
@@ -151,10 +160,30 @@ const BUILDINGS = [
     image: "/research_lab.png",
     desc: "Unlock new technologies and expand your capabilities.",
     available: true,
+    unlockRequires: { building: "command_post", level: 1 },
+    unlockLabel: "Requires Command Post Lv. 1",
     levels: [
       { level: 1, label: "1 research slot · speed 1×",   cost: { ruined_stone: 20, scrap_metal: 5 } },
       { level: 2, label: "2 research slots · speed 1.5×", cost: { credits: 200, ref_silicate: 5 } },
       { level: 3, label: "3 research slots · speed 2×",   cost: { credits: 600, ferrite_plate: 4 } },
+    ],
+  },
+  {
+    id: "trade_post", name: "Trade Post", icon: "🏪", color: "#f59e0b",
+    desc: "Buy and sell resources with passing traders.",
+    available: false,
+    unlockLabel: "Coming soon",
+    levels: [
+      { level: 1, label: "Basic trading", cost: null },
+    ],
+  },
+  {
+    id: "shipyard", name: "Shipyard", icon: "🚀", color: "#5bc4e8",
+    desc: "Construct and upgrade spacecraft components.",
+    available: false,
+    unlockLabel: "Coming soon",
+    levels: [
+      { level: 1, label: "Basic construction", cost: null },
     ],
   },
 ];
@@ -256,6 +285,10 @@ html, body { background: #07090f; color: #c8d4e0; font-family: 'Barlow', sans-se
     box-shadow: 0 0 120px rgba(0,0,0,0.85);
   }
 }
+
+/* Buildings grid: 2 cols mobile, 4 cols desktop */
+.buildings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px 16px 16px; }
+@media (min-width: 700px) { .buildings-grid { grid-template-columns: repeat(4, 1fr); } }
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,35 +361,35 @@ function RowItem({ icon, name, level, locked, lockReason, active, badge, onClick
 
 
 function BuildingGridCard({ building, level, onClick }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const isLocked = !building.available;
+  const hasImage = building.image && !imgFailed;
   return (
     <div
-      onClick={!isLocked && onClick ? onClick : undefined}
+      onClick={onClick || undefined}
       style={{
         position: "relative", aspectRatio: "1", borderRadius: 6, overflow: "hidden",
         background: "rgba(3,8,18,0.75)",
         border: `1px solid ${isLocked ? "rgba(255,255,255,0.07)" : building.color + "30"}`,
-        cursor: !isLocked && onClick ? "pointer" : "default",
+        cursor: onClick ? "pointer" : "default",
         opacity: isLocked ? 0.45 : 1,
         display: "flex", flexDirection: "column",
         transition: "opacity 0.15s",
         animation: "fadeIn 0.2s ease",
       }}
-      onMouseEnter={e => { if (!isLocked && onClick) e.currentTarget.style.opacity = "0.85"; }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.opacity = isLocked ? "0.6" : "0.85"; }}
       onMouseLeave={e => { e.currentTarget.style.opacity = isLocked ? "0.45" : "1"; }}
     >
       {/* ── Image / color placeholder ── */}
       <div style={{
         flex: 1, position: "relative",
-        background: building.image
-          ? `url(${building.image}) center/cover no-repeat`
-          : `linear-gradient(160deg, ${building.color}28 0%, ${building.color}0c 100%)`,
+        background: `linear-gradient(160deg, ${building.color}28 0%, ${building.color}0c 100%)`,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {!building.image && <span style={{ fontSize: 22, opacity: isLocked ? 0.35 : 0.65 }}>{building.icon}</span>}
-        {building.image && (
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
-        )}
+        {building.image && <img src={building.image} onError={() => setImgFailed(true)} alt="" style={{ display: "none" }} />}
+        {hasImage && <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${building.image})`, backgroundSize: "cover", backgroundPosition: "center" }} />}
+        {!hasImage && <span style={{ fontSize: 22, opacity: isLocked ? 0.35 : 0.65 }}>{building.icon}</span>}
+        {hasImage && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />}
         {isLocked && (
           <div style={{
             position: "absolute", inset: 0,
@@ -552,14 +585,21 @@ function SectorScreen({ sector, mining, onStartMining }) {
 // BASE SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BaseScreen({ refQueue, onOpenBuilding }) {
+function BaseScreen({ refQueue, buildingLevels, onOpenBuilding }) {
   const activeRecipe = refQueue.length > 0 ? RECIPES.find(r => r.id === refQueue[0]?.recipeId) : null;
   const activeItem   = activeRecipe ? ITEMS[activeRecipe.id] : null;
 
+  const isBuildingAvailable = (b) => {
+    if (b.unlockRequires) {
+      return (buildingLevels[b.unlockRequires.building] || 0) >= b.unlockRequires.level;
+    }
+    return b.available;
+  };
+
   // 1-away rule: show all available + next 1 locked only; rest become teaser count
-  const availableBuildings = BUILDINGS.filter(b => b.available);
-  const nextLocked  = BUILDINGS.find(b => !b.available);
-  const hiddenCount = BUILDINGS.filter(b => !b.available).length - (nextLocked ? 1 : 0);
+  const availableBuildings = BUILDINGS.filter(b => isBuildingAvailable(b));
+  const nextLocked  = BUILDINGS.find(b => !isBuildingAvailable(b));
+  const hiddenCount = BUILDINGS.filter(b => !isBuildingAvailable(b)).length - (nextLocked ? 1 : 0);
   const visible     = nextLocked ? [...availableBuildings, nextLocked] : availableBuildings;
 
   return (
@@ -575,7 +615,7 @@ function BaseScreen({ refQueue, onOpenBuilding }) {
       <div style={{ padding: "10px 16px 28px", display: "flex", flexDirection: "column", gap: 10 }}>
         {visible.map((b, i) => {
           const isActive  = b.id === "refinery" && refQueue.length > 0;
-          const clickable = b.available;
+          const clickable = isBuildingAvailable(b);
           return (
             <div key={b.id}
               onClick={() => clickable && onOpenBuilding(b.id)}
@@ -618,9 +658,9 @@ function BaseScreen({ refQueue, onOpenBuilding }) {
                   )}
 
                   {/* Locked: unlock hint */}
-                  {!clickable && (
+                  {!clickable && b.unlockLabel && (
                     <div style={{ fontSize: 10, color: "rgba(91,196,232,0.28)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, marginTop: 3 }}>
-                      // Freischaltbar · Operation ausbauen
+                      🔒 {b.unlockLabel}
                     </div>
                   )}
                 </div>
@@ -914,11 +954,13 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTech
     if (id === "refining")  onNavigate("refiningDetail");
   };
 
-  // Show all available buildings except refinery (handled as a skill/activity) + first locked teaser
-  const availableBuildings = BUILDINGS.filter(b => b.available && b.id !== "refinery");
-  const firstLocked        = BUILDINGS.find(b => !b.available);
-  const hasMoreHidden      = BUILDINGS.filter(b => !b.available).length > 1;
-  const visibleBuildings   = firstLocked ? [...availableBuildings, firstLocked] : availableBuildings;
+  const isBuildingAvailable = (b) => {
+    if (b.unlockRequires) return (buildingLevels[b.unlockRequires.building] || 0) >= b.unlockRequires.level;
+    return b.available;
+  };
+
+  // All buildings except refinery (shown as activity), all visible, locked ones grayed
+  const visibleBuildings = BUILDINGS.filter(b => b.id !== "refinery");
 
   // Dynamic location
   const isHome    = currentLocation === "home";
@@ -949,54 +991,73 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTech
 
       {/* ── Activities ── */}
       <SectionLabel>ACTIVITIES</SectionLabel>
-      {ORT_SKILLS.map((skill, i) => {
-        // Refining visibility/lock rules
+      {ORT_SKILLS.filter(s => s.id !== "crafting").map((skill, i) => {
         if (skill.id === "refining" && !isLabBuilt) return null;
         const refiningLocked = skill.id === "refining" && !isRefiningUnlocked;
-
         const active   = (skill.id === "mining" && isMiningActive) || (skill.id === "salvaging" && isSalvagingActive) || (skill.id === "refining" && isRefiningActive && isRefiningUnlocked);
         const isLocked = !!skill.locked || refiningLocked;
         const badge    = skill.id === "refining" && isRefiningUnlocked ? refBadge : null;
         const level    = skill.id === "mining" ? miningLevel : skill.id === "salvaging" ? salvagingLevel : skill.id === "refining" ? refiningLevel : 1;
         const lockReason = refiningLocked ? "Research Basic Refining in the Research Lab to unlock." : undefined;
         return (
-          <RowItem
-            key={skill.id}
-            icon={skill.icon}
-            name={skill.name}
-            level={level}
-            locked={isLocked}
-            lockReason={lockReason}
-            active={active}
-            badge={badge}
-            onClick={!isLocked ? () => handleSkillClick(skill.id) : null}
-            animDelay={i * 0.05}
-          />
+          <RowItem key={skill.id} icon={skill.icon} name={skill.name} level={level}
+            locked={isLocked} lockReason={lockReason} active={active} badge={badge}
+            onClick={!isLocked ? () => handleSkillClick(skill.id) : null} animDelay={i * 0.05} />
         );
       })}
+      <div style={{ padding: "6px 18px 4px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.04)" }} />
+        <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.16)", letterSpacing: 1.5 }}>// Further activities unlockable</span>
+        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.04)" }} />
+      </div>
 
       {/* ── Buildings ── */}
-      <SectionLabel>GEBÄUDE</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "8px 16px 16px" }}>
-        {visibleBuildings.map((b) => (
-          <BuildingGridCard
-            key={b.id}
-            building={b}
-            level={buildingLevels[b.id] ?? 0}
-            onClick={b.available ? () => onNavigate("buildingDetail", b.id) : null}
-          />
-        ))}
+      <SectionLabel>BUILDINGS</SectionLabel>
+      <div className="buildings-grid">
+        {visibleBuildings.map((b) => {
+          const available = isBuildingAvailable(b);
+          return (
+            <BuildingGridCard
+              key={b.id}
+              building={{ ...b, available }}
+              level={buildingLevels[b.id] ?? 0}
+              onClick={() => onNavigate("buildingDetail", b.id)}
+            />
+          );
+        })}
       </div>
-      {hasMoreHidden && (
-        <div style={{ padding: "0 18px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.18)", letterSpacing: 1.5, whiteSpace: "nowrap" }}>// Weitere Gebäude freischaltbar</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-        </div>
-      )}
 
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COST TAG ROW (shared: green if have enough, red if missing)
+// ─────────────────────────────────────────────────────────────────────────────
+function CostTagRow({ cost, inventory, credits }) {
+  if (!cost) return null;
+  const tags = [];
+  if (cost.credits) {
+    const have = credits || 0;
+    const ok   = have >= cost.credits;
+    tags.push(
+      <Tag key="credits" color={ok ? "rgba(255,255,255,0.45)" : "#e05252"}>
+        💳 {cost.credits} CR <span style={{ opacity: 0.5, marginLeft: 3 }}>({have})</span>
+      </Tag>
+    );
+  }
+  for (const [k, v] of Object.entries(cost)) {
+    if (k === "credits") continue;
+    const item = ITEMS[k];
+    const have = inventory?.[k] || 0;
+    const ok   = have >= v;
+    tags.push(
+      <Tag key={k} color={ok ? "rgba(255,255,255,0.45)" : "#e05252"}>
+        {item?.icon} {v}× {item?.name || k} <span style={{ opacity: 0.5, marginLeft: 3 }}>({have})</span>
+      </Tag>
+    );
+  }
+  return <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>{tags}</div>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1021,99 +1082,25 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade, researchedTe
     return true;
   };
 
-  const formatCost = (cost) => {
-    if (!cost) return "—";
-    const parts = [];
-    if (cost.credits) parts.push(`${cost.credits} CR`);
-    for (const [k, v] of Object.entries(cost)) {
-      if (k === "credits") continue;
-      parts.push(`${v}× ${ITEMS[k]?.name || k}`);
-    }
-    return parts.join(" + ");
-  };
-
   const canAffordBuild = nextData?.cost ? canAffordCost(nextData.cost) : false;
 
   const handleTechClick = (tech) => {
     setSelectedTech(prev => (prev?.id === tech.id ? null : tech));
   };
 
-  // ── Tech detail panel (replaces building header when a tech is selected) ──
-  const techIsDone = selectedTech ? !!researchedTechs?.[selectedTech.id] : false;
+  const techIsDone   = selectedTech ? !!researchedTechs?.[selectedTech.id] : false;
   const canAffordTech = selectedTech?.cost ? canAffordCost(selectedTech.cost) : false;
 
-  const TechDetailPanel = () => (
-    <div style={{ padding: "18px 18px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.15s ease" }}>
-      {/* Icon + name + close */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 4, flexShrink: 0, background: selectedTech.color + "18", border: `1px solid ${selectedTech.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 0 14px ${selectedTech.color}22` }}>
-          {selectedTech.icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
-            {selectedTech.name}
-          </div>
-          <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: techIsDone ? "#5ec26a" : selectedTech.color }}>
-            {techIsDone ? "✓ RESEARCHED" : selectedTech.available ? "AVAILABLE" : "LOCKED"}
-          </div>
-        </div>
-        <button
-          onClick={() => setSelectedTech(null)}
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", borderRadius: 2, width: 26, height: 26, fontSize: 13, cursor: "pointer", flexShrink: 0, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-        >✕</button>
-      </div>
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
 
-      {/* Description */}
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.55, marginBottom: selectedTech.cost || techIsDone ? 14 : 0 }}>
-        {selectedTech.desc}
-      </div>
-
-      {/* Cost tags */}
-      {!techIsDone && selectedTech.cost && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-          {Object.entries(selectedTech.cost).map(([k, v]) => {
-            const item = ITEMS[k];
-            const have = inventory?.[k] || 0;
-            const ok   = have >= v;
-            return (
-              <Tag key={k} color={ok ? "rgba(255,255,255,0.4)" : "#e05252"}>
-                {item?.icon} {v}× {item?.name || k}
-                <span style={{ opacity: 0.5, marginLeft: 3 }}>({have})</span>
-              </Tag>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Action */}
-      {techIsDone ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 3, height: 10, background: "#5ec26a", opacity: 0.5, borderRadius: 1 }} />
-          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 2, textTransform: "uppercase" }}>RESEARCH COMPLETE</span>
-        </div>
-      ) : selectedTech.cost ? (
-        <button
-          onClick={canAffordTech ? () => { onResearch(selectedTech.id); setSelectedTech(null); } : undefined}
-          className={canAffordTech ? "btn-glow" : ""}
-          style={{ padding: "11px 0", background: canAffordTech ? selectedTech.color + "1a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordTech ? selectedTech.color + "50" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordTech ? selectedTech.color : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordTech ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
-        >
-          {canAffordTech ? "RESEARCH" : "RESEARCH – INSUFFICIENT RESOURCES"}
-        </button>
-      ) : (
-        <button style={{ padding: "11px 0", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
-          RESEARCH – COMING SOON
-        </button>
-      )}
-    </div>
-  );
-
-  // ── Building header (default top section) ──
-  const BuildingHeader = () => (
-    <>
+      {/* ── Hero image (always visible) ── */}
       <div style={{ position: "relative", width: "100%", height: 130, flexShrink: 0, overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/research_lab.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
       </div>
+
+      {/* ── Title + description (always visible) ── */}
       <div style={{ padding: "14px 18px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ fontSize: 20, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
           Research Lab
@@ -1126,68 +1113,124 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade, researchedTe
         </div>
       </div>
 
-      {/* Build / Upgrade */}
-      {!isBuilt && nextData ? (
-        <>
-          <SectionLabel>BUILD RESEARCH LAB</SectionLabel>
-          <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.65)", letterSpacing: 0.5 }}>{formatCost(nextData.cost)}</span>
+      {/* ── Switchable zone: tech detail OR build/upgrade (fixed min-height to prevent grid jump) ── */}
+      <div style={{ minHeight: 130, flexShrink: 0 }}>
+        {selectedTech ? (
+          /* Tech detail panel */
+          <div style={{ padding: "14px 18px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.15s ease" }}>
+            {/* Header: icon + name + status + close */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 4, flexShrink: 0, background: selectedTech.color + "18", border: `1px solid ${selectedTech.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: `0 0 12px ${selectedTech.color}22` }}>
+                {selectedTech.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
+                  {selectedTech.name}
+                </div>
+                <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: techIsDone ? "#5ec26a" : selectedTech.color }}>
+                  {techIsDone ? "✓ RESEARCHED" : selectedTech.available ? "AVAILABLE" : "LOCKED"}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTech(null)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", borderRadius: 2, width: 24, height: 24, fontSize: 12, cursor: "pointer", flexShrink: 0, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >✕</button>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
+            {/* Description */}
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.55, marginBottom: 10 }}>
+              {selectedTech.desc}
             </div>
-            <button
-              onClick={canAffordBuild ? onUpgrade : undefined}
-              className={canAffordBuild ? "btn-glow" : ""}
-              style={{ marginTop: 6, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
-            >
-              {canAffordBuild ? "BUILD RESEARCH LAB" : "BUILD – INSUFFICIENT RESOURCES"}
-            </button>
-          </div>
-        </>
-      ) : isBuilt && nextData ? (
-        <>
-          <SectionLabel>UPGRADE TO LV. {level + 1}</SectionLabel>
-          <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.65)", letterSpacing: 0.5 }}>{formatCost(nextData.cost)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
-            </div>
-            <button
-              onClick={canAffordBuild ? onUpgrade : undefined}
-              className={canAffordBuild ? "btn-glow" : ""}
-              style={{ marginTop: 6, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
-            >
-              {canAffordBuild ? `UPGRADE → LV. ${level + 1}` : "UPGRADE – INSUFFICIENT RESOURCES"}
-            </button>
-            {currentData && (
-              <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(91,196,232,0.4)", letterSpacing: 0.5 }}>
-                Current: {currentData.label}
+            {/* Cost tags */}
+            {!techIsDone && selectedTech.cost && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                {Object.entries(selectedTech.cost).map(([k, v]) => {
+                  const item = ITEMS[k];
+                  const have = inventory?.[k] || 0;
+                  const ok   = have >= v;
+                  return (
+                    <Tag key={k} color={ok ? "rgba(255,255,255,0.4)" : "#e05252"}>
+                      {item?.icon} {v}× {item?.name || k}
+                      <span style={{ opacity: 0.5, marginLeft: 3 }}>({have})</span>
+                    </Tag>
+                  );
+                })}
               </div>
             )}
+            {/* Action */}
+            {techIsDone ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 3, height: 10, background: "#5ec26a", opacity: 0.5, borderRadius: 1 }} />
+                <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 2, textTransform: "uppercase" }}>RESEARCH COMPLETE</span>
+              </div>
+            ) : selectedTech.cost ? (
+              <button
+                onClick={canAffordTech ? () => { onResearch(selectedTech.id); setSelectedTech(null); } : undefined}
+                className={canAffordTech ? "btn-glow" : ""}
+                style={{ padding: "10px 0", background: canAffordTech ? selectedTech.color + "1a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordTech ? selectedTech.color + "50" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordTech ? selectedTech.color : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordTech ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+              >
+                {canAffordTech ? "RESEARCH" : "INSUFFICIENT RESOURCES"}
+              </button>
+            ) : (
+              <button style={{ padding: "10px 0", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
+                COMING SOON
+              </button>
+            )}
           </div>
-        </>
-      ) : isBuilt ? (
-        <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 3, height: 10, background: "#3fa7d6", opacity: 0.5, borderRadius: 1 }} />
-          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL REACHED</span>
-        </div>
-      ) : null}
-    </>
-  );
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
-
-      {/* ── Top zone: switches between building header and tech detail ── */}
-      {selectedTech ? <TechDetailPanel /> : <BuildingHeader />}
+        ) : (
+          /* Build / Upgrade section */
+          <>
+            {!isBuilt && nextData ? (
+              <>
+                <SectionLabel>BUILD RESEARCH LAB</SectionLabel>
+                <div style={{ padding: "8px 18px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>Cost</div>
+                  <CostTagRow cost={nextData.cost} inventory={inventory} credits={credits} />
+                  <div style={{ display: "flex", gap: 6, alignItems: "baseline", marginTop: 2 }}>
+                    <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+                    <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
+                  </div>
+                  <button
+                    onClick={canAffordBuild ? onUpgrade : undefined}
+                    className={canAffordBuild ? "btn-glow" : ""}
+                    style={{ marginTop: 8, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+                  >
+                    {canAffordBuild ? "BUILD RESEARCH LAB" : "INSUFFICIENT RESOURCES"}
+                  </button>
+                </div>
+              </>
+            ) : isBuilt && nextData ? (
+              <>
+                <SectionLabel>UPGRADE TO LV. {level + 1}</SectionLabel>
+                <div style={{ padding: "8px 18px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>Cost</div>
+                  <CostTagRow cost={nextData.cost} inventory={inventory} credits={credits} />
+                  <div style={{ display: "flex", gap: 6, alignItems: "baseline", marginTop: 2 }}>
+                    <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+                    <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
+                  </div>
+                  <button
+                    onClick={canAffordBuild ? onUpgrade : undefined}
+                    className={canAffordBuild ? "btn-glow" : ""}
+                    style={{ marginTop: 8, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+                  >
+                    {canAffordBuild ? `UPGRADE → LV. ${level + 1}` : "INSUFFICIENT RESOURCES"}
+                  </button>
+                  {currentData && (
+                    <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(91,196,232,0.4)", letterSpacing: 0.5 }}>
+                      Current: {currentData.label}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : isBuilt ? (
+              <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 3, height: 10, background: "#3fa7d6", opacity: 0.5, borderRadius: 1 }} />
+                <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL REACHED</span>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
 
       {/* ── Technologies grid (only when built) ── */}
       {isBuilt && (
@@ -1223,81 +1266,138 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade, researchedTe
 // BUILDING DETAIL SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 function BuildingDetailScreen({ buildingId, buildingLevels, inventory, credits, onUpgrade }) {
-  const building     = BUILDINGS.find(b => b.id === buildingId);
+  const [imgFailed, setImgFailed] = useState(false);
+  const building    = BUILDINGS.find(b => b.id === buildingId);
   if (!building) return null;
-  const level        = buildingLevels[buildingId] || 1;
-  const currentData  = building.levels?.find(l => l.level === level) || building.levels?.[0];
-  const nextData     = building.levels?.find(l => l.level === level + 1);
 
-  const formatCost = (cost) => {
-    if (!cost) return "—";
-    const parts = [];
-    if (cost.credits) parts.push(`${cost.credits} CR`);
-    for (const [k, v] of Object.entries(cost)) {
-      if (k === "credits") continue;
-      const item = ITEMS[k];
-      parts.push(`${v}× ${item?.name || k}`);
-    }
-    return parts.join(" + ");
-  };
+  const level       = buildingLevels[buildingId] ?? 0;
+  const isBuilt     = level >= 1;
+  const currentData = isBuilt ? (building.levels?.find(l => l.level === level) || building.levels?.[0]) : null;
+  const nextData    = building.levels?.find(l => l.level === level + 1);
 
-  const canAfford = nextData?.cost ? (() => {
-    const cost = nextData.cost;
-    if (cost.credits && credits < cost.credits) return false;
+  // Is this building locked by unlock requirements?
+  const isLocked = building.unlockRequires
+    ? (buildingLevels[building.unlockRequires.building] || 0) < building.unlockRequires.level
+    : !building.available;
+
+  const canAffordCost = (cost) => {
+    if (!cost) return false;
+    if (cost.credits && (credits || 0) < cost.credits) return false;
     for (const [k, v] of Object.entries(cost)) {
       if (k !== "credits" && (inventory[k] || 0) < v) return false;
     }
     return true;
-  })() : false;
+  };
+  const canAffordNext = !isLocked && nextData?.cost ? canAffordCost(nextData.cost) : false;
+
+  const ActionBtn = ({ canDo, onPress, labelOk, labelNo }) => (
+    <button
+      onClick={canDo ? onPress : undefined}
+      className={canDo ? "btn-glow" : ""}
+      style={{ marginTop: 8, padding: "11px 0", background: canDo ? building.color + "1a" : "rgba(255,255,255,0.02)", border: `1px solid ${canDo ? building.color + "50" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canDo ? building.color : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canDo ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+    >
+      {canDo ? labelOk : labelNo}
+    </button>
+  );
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
 
-      {/* ── Building header ── */}
-      <div style={{ padding: "16px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "linear-gradient(180deg, rgba(91,196,232,0.04) 0%, transparent 100%)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 4, background: building.color + "18", border: `1px solid ${building.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0, boxShadow: `0 0 16px ${building.color}22` }}>
-            {building.icon}
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1 }}>
-              {building.name}
-            </div>
-            <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 1, marginTop: 4 }}>
-              Level {level} · {currentData?.label}
-            </div>
-          </div>
+      {/* ── Cover hero ── */}
+      {building.image && !imgFailed ? (
+        <div style={{ position: "relative", width: "100%", height: 130, flexShrink: 0, overflow: "hidden" }}>
+          <img src={building.image} onError={() => setImgFailed(true)} alt="" style={{ display: "none" }} />
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${building.image})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
+        </div>
+      ) : (
+        <div style={{ position: "relative", width: "100%", height: 100, flexShrink: 0, overflow: "hidden", background: `linear-gradient(135deg, ${building.color}22 0%, rgba(7,13,26,0.9) 100%)` }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, opacity: 0.18 }}>{building.icon}</div>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, transparent 70%)" }} />
+        </div>
+      )}
+
+      {/* ── Title + status ── */}
+      <div style={{ padding: "14px 18px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ fontSize: 20, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
+          {building.name}
+        </div>
+        <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, marginBottom: 8, color: isLocked ? "#e05252" : isBuilt ? building.color : "rgba(255,255,255,0.3)" }}>
+          {isLocked ? "🔒 LOCKED" : isBuilt ? `Level ${level} · ${currentData?.label}` : "NOT BUILT"}
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.5 }}>
+          {building.desc}
         </div>
       </div>
 
-      {/* ── Upgrade section ── */}
-      {nextData ? (
-        <>
-          <SectionLabel>UPGRADE AUF LV. {level + 1}</SectionLabel>
-          <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Kosten</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.65)", letterSpacing: 0.5 }}>{formatCost(nextData.cost)}</span>
+      {/* ── Action zone ── */}
+      <div style={{ flexShrink: 0 }}>
+        {isLocked ? (
+          <>
+            <SectionLabel>LOCKED</SectionLabel>
+            <div style={{ padding: "8px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {building.unlockRequires ? (() => {
+                const reqB = BUILDINGS.find(b => b.id === building.unlockRequires.building);
+                const have = buildingLevels[building.unlockRequires.building] || 0;
+                const need = building.unlockRequires.level;
+                return (
+                  <div>
+                    <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Requires</div>
+                    <Tag color={have >= need ? "rgba(255,255,255,0.45)" : "#e05252"}>
+                      {reqB?.icon} {reqB?.name} Lv. {need}
+                      <span style={{ opacity: 0.5, marginLeft: 4 }}>({have}/{need})</span>
+                    </Tag>
+                  </div>
+                );
+              })() : building.unlockLabel ? (
+                <div>
+                  <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Status</div>
+                  <Tag color="rgba(255,255,255,0.25)">{building.unlockLabel}</Tag>
+                </div>
+              ) : null}
+              <button style={{ marginTop: 4, padding: "11px 0", background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3, color: "#e0525266", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
+                🔒 LOCKED
+              </button>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Effekt</span>
-              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 0.5 }}>{nextData.label}</span>
+          </>
+        ) : !isBuilt && nextData ? (
+          <>
+            <SectionLabel>BUILD {building.name.toUpperCase()}</SectionLabel>
+            <div style={{ padding: "8px 18px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>Cost</div>
+              <CostTagRow cost={nextData.cost} inventory={inventory} credits={credits} />
+              <div style={{ display: "flex", gap: 6, alignItems: "baseline", marginTop: 2 }}>
+                <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+                <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 0.5 }}>{nextData.label}</span>
+              </div>
+              <ActionBtn canDo={canAffordNext} onPress={onUpgrade} labelOk={`BUILD ${building.name.toUpperCase()}`} labelNo="INSUFFICIENT RESOURCES" />
             </div>
-            <button
-              onClick={canAfford ? onUpgrade : undefined}
-              className={canAfford ? "btn-glow" : ""}
-              style={{ marginTop: 6, padding: "11px 0", background: canAfford ? building.color + "1a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAfford ? building.color + "50" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAfford ? building.color : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAfford ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
-            >
-              {canAfford ? `UPGRADE → LV. ${level + 1}` : "UPGRADE – INSUFFICIENT RESOURCES"}
-            </button>
+          </>
+        ) : isBuilt && nextData ? (
+          <>
+            <SectionLabel>UPGRADE TO LV. {level + 1}</SectionLabel>
+            <div style={{ padding: "8px 18px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>Cost</div>
+              <CostTagRow cost={nextData.cost} inventory={inventory} credits={credits} />
+              <div style={{ display: "flex", gap: 6, alignItems: "baseline", marginTop: 2 }}>
+                <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+                <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 0.5 }}>{nextData.label}</span>
+              </div>
+              <ActionBtn canDo={canAffordNext} onPress={onUpgrade} labelOk={`UPGRADE → LV. ${level + 1}`} labelNo="INSUFFICIENT RESOURCES" />
+              {currentData && (
+                <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: `${building.color}55`, letterSpacing: 0.5 }}>
+                  Current: {currentData.label}
+                </div>
+              )}
+            </div>
+          </>
+        ) : isBuilt ? (
+          <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 3, height: 10, background: building.color, opacity: 0.5, borderRadius: 1 }} />
+            <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL REACHED</span>
           </div>
-        </>
-      ) : (
-        <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 3, height: 10, background: building.color, opacity: 0.5, borderRadius: 1 }} />
-          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: building.color, letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL ERREICHT</span>
-        </div>
-      )}
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -1872,33 +1972,91 @@ function InventoryOverlay({ inventory, onClose }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFLINE SUMMARY MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function OfflineSummaryModal({ summary, username, onDismiss }) {
+  const totalSecs = summary.elapsedSec;
+  const hours     = Math.floor(totalSecs / 3600);
+  const mins      = Math.floor((totalSecs % 3600) / 60);
+  const timeStr   = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  const entries   = Object.entries(summary.gathered || {});
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "fadeIn 0.25s ease" }}>
+      <div style={{ width: "100%", maxWidth: 360, background: "rgba(5,12,25,0.98)", border: "1px solid rgba(91,196,232,0.25)", borderTop: "2px solid rgba(91,196,232,0.6)", borderRadius: 12, overflow: "hidden", boxShadow: "0 0 80px rgba(91,196,232,0.1), 0 24px 64px rgba(0,0,0,0.7)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "22px 24px 16px", borderBottom: "1px solid rgba(91,196,232,0.1)" }}>
+          <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 3, color: "rgba(91,196,232,0.5)", marginBottom: 8 }}>// WELCOME BACK</div>
+          <div style={{ fontSize: 20, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1, color: "#fff", marginBottom: 4 }}>
+            Commander <span style={{ color: "#5bc4e8" }}>{username}</span>
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif" }}>
+            You were offline for <span style={{ color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{timeStr}</span>. Here's what happened:
+          </div>
+        </div>
+
+        {/* Gathered items */}
+        <div style={{ padding: "14px 24px 18px" }}>
+          {entries.length > 0 ? (
+            <>
+              <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2.5, color: "rgba(91,196,232,0.45)", marginBottom: 10 }}>RESOURCES GATHERED</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {entries.map(([itemId, amount]) => {
+                  const item = ITEMS[itemId];
+                  if (!item) return null;
+                  const rar = RARITY[item.rarity || "common"];
+                  return (
+                    <div key={itemId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "rgba(91,196,232,0.04)", border: `1px solid ${rar.color}18`, borderLeft: `2px solid ${rar.color}55`, borderRadius: 4 }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                      <span style={{ flex: 1, fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 0.5, color: "rgba(255,255,255,0.85)" }}>{item.name}</span>
+                      <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, color: rar.color }}>+{amount}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "16px 0", fontSize: 13, color: "rgba(255,255,255,0.35)", fontFamily: "'Barlow',sans-serif" }}>
+              No active tasks were running while offline.
+            </div>
+          )}
+
+          {summary.refiningDone > 0 && (
+            <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(94,194,106,0.06)", border: "1px solid rgba(94,194,106,0.2)", borderLeft: "2px solid rgba(94,194,106,0.5)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Barlow Condensed',sans-serif" }}>
+              ⚗️ Refinery completed <span style={{ color: "#5ec26a", fontWeight: 700 }}>{summary.refiningDone}</span> job{summary.refiningDone !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div style={{ padding: "0 24px 24px" }}>
+          <button
+            onClick={onDismiss}
+            style={{ width: "100%", padding: "13px", background: "rgba(91,196,232,0.12)", border: "1px solid rgba(91,196,232,0.4)", borderRadius: 8, color: "#7dd4f0", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", transition: "background 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(91,196,232,0.2)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(91,196,232,0.12)"}
+          >
+            CONTINUE
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginScreen() {
-  const [email, setEmail]       = useState("");
-  const [sent, setSent]         = useState(false);
-  const [loading, setLoading]   = useState(false);
+function LoginScreen({ onBeforeLogin }) {
+  const [username, setUsername]   = useState("");
+  const [email, setEmail]         = useState("");
+  const [sent, setSent]           = useState(false);
+  const [loading, setLoading]     = useState(false);
   const [showEmail, setShowEmail] = useState(false);
-  const [guestError, setGuestError] = useState("");
+  const [error, setError]         = useState("");
 
-  const handleLogin = async () => {
-    if (!email) return;
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin }
-    });
-    setLoading(false);
-    if (!error) setSent(true);
-  };
-
-  const handleGuest = async () => {
-    setLoading(true);
-    setGuestError("");
-    const { error } = await supabase.auth.signInAnonymously();
-    setLoading(false);
-    if (error) setGuestError("Gastzugang momentan nicht verfügbar.");
-  };
+  const usernameValid = username.trim().length >= 2;
 
   const features = [
     "Automate asteroid mining",
@@ -1907,78 +2065,134 @@ function LoginScreen() {
     "Trade rare cosmic resources",
   ];
 
+  const handleGuest = async () => {
+    if (!usernameValid) { setError("Bitte gib einen Benutzernamen ein (min. 2 Zeichen)."); return; }
+    setLoading(true);
+    setError("");
+    onBeforeLogin(username.trim());
+    const { error: authErr } = await supabase.auth.signInAnonymously();
+    setLoading(false);
+    if (authErr) setError("Gastzugang momentan nicht verfügbar.");
+  };
+
+  const handleEmailLogin = async () => {
+    if (!usernameValid) { setError("Bitte gib zuerst einen Benutzernamen ein."); return; }
+    if (!email) { setError("Bitte gib deine E-Mail-Adresse ein."); return; }
+    setLoading(true);
+    setError("");
+    onBeforeLogin(username.trim());
+    // Persist across the magic-link page reload
+    localStorage.setItem("vf_pending_username", username.trim());
+    const { error: authErr } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    setLoading(false);
+    if (authErr) setError("Login fehlgeschlagen. Versuche es erneut.");
+    else setSent(true);
+  };
+
+  const inputStyle = {
+    width: "100%", boxSizing: "border-box", padding: "12px 14px",
+    background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.16)",
+    borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif",
+    marginBottom: 10, outline: "none",
+  };
+
   return (
     <div style={{ minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", position: "relative", zIndex: 1, overflowY: "auto", boxSizing: "border-box" }}>
 
       {/* Hero */}
-      <div style={{ textAlign: "center", marginBottom: 36 }}>
-
-        {/* Title — centered independently; badge floats absolutely */}
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 20 }}>
           <h1 className="font-display" style={{ fontSize: "clamp(56px, 11vw, 88px)", letterSpacing: 8, color: "#5bc4e8", textShadow: "0 0 40px rgba(91,196,232,0.51), 0 0 80px rgba(91,196,232,0.21)", margin: 0, lineHeight: 1 }}>VOID FRONTIER</h1>
-          {/* Alpha badge — absolute, doesn't disturb title centering */}
           <span style={{ position: "absolute", top: -10, right: -58, fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2, color: "#ffd060", border: "1px solid rgba(255,208,96,0.5)", borderRadius: 3, padding: "3px 8px", background: "rgba(255,208,96,0.1)", textShadow: "0 0 10px rgba(255,208,96,0.6)", whiteSpace: "nowrap" }}>ALPHA</span>
         </div>
-
-        {/* Hook — automation / long-term growth */}
         <p style={{ fontSize: 22, color: "rgba(255,255,255,0.93)", fontFamily: "'Barlow',sans-serif", maxWidth: 380, margin: "0 auto 12px", lineHeight: 1.5, fontWeight: 600 }}>
           Build. Automate. Expand. Repeat.
         </p>
-
-        {/* Sub-hook */}
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.72)", fontFamily: "'Barlow',sans-serif", maxWidth: 350, margin: "0 auto", lineHeight: 1.65, fontWeight: 400 }}>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.62)", fontFamily: "'Barlow',sans-serif", maxWidth: 340, margin: "0 auto", lineHeight: 1.65, fontWeight: 400 }}>
           A space idle game built around long-term automation and persistent growth.
         </p>
       </div>
 
-      {/* CTA area */}
-      <div style={{ width: "100%", maxWidth: 400, marginBottom: 32 }}>
+      {/* CTA card */}
+      <div style={{ width: "100%", maxWidth: 400, marginBottom: 28 }}>
         {sent ? (
           <div style={{ textAlign: "center", padding: "28px 24px", background: "rgba(255,255,255,0.055)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 16 }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
             <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10, color: "#fff" }}>Check your inbox</div>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, margin: 0 }}>We sent a login link to <strong style={{ color: "#fff" }}>{email}</strong>. Click it to enter the game.</p>
-          </div>
-        ) : showEmail ? (
-          <div style={{ background: "rgba(255,255,255,0.055)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 16, padding: "28px 24px" }}>
-            <button onClick={() => setShowEmail(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, cursor: "pointer", padding: 0, marginBottom: 20 }}>← BACK</button>
-            <div style={{ fontSize: 16, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.5, marginBottom: 6, color: "#fff" }}>Sign in with email</div>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", lineHeight: 1.65, marginBottom: 20, marginTop: 0 }}>No password needed — we'll send you a magic link.</p>
-            <input type="email" placeholder="you@example.com" value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()}
-              style={{ width: "100%", boxSizing: "border-box", padding: "11px 13px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, color: "#fff", fontSize: 14, fontFamily: "'Barlow',sans-serif", marginBottom: 12, outline: "none" }}
-            />
-            <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.15)", border: "1px solid rgba(91,196,232,0.45)", borderRadius: 8, color: "#7dd4f0", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1.5, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
-              {loading ? "SENDING..." : "SEND LOGIN LINK"}
-            </button>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, margin: 0 }}>
+              Login-Link gesendet an <strong style={{ color: "#fff" }}>{email}</strong>.<br />Klick den Link, um als <strong style={{ color: "#5bc4e8" }}>{username}</strong> zu spielen.
+            </p>
           </div>
         ) : (
-          <>
-            {/* Primary CTA — pulsing glow */}
-            <button
-              onClick={handleGuest}
-              disabled={loading}
-              className="cta-pulse"
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.animationPlayState = "paused"; e.currentTarget.style.boxShadow = "0 0 56px rgba(91,196,232,0.55), 0 8px 32px rgba(0,0,0,0.4)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.animationPlayState = "running"; e.currentTarget.style.boxShadow = ""; }}
-              style={{ width: "100%", padding: "18px 24px", background: "linear-gradient(135deg, rgba(91,196,232,0.28), rgba(91,196,232,0.11))", border: "1px solid rgba(91,196,232,0.6)", borderRadius: 12, color: "#c8eef8", fontSize: 16, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", opacity: loading ? 0.6 : 1, transition: "transform 0.15s, box-shadow 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}
-            >
-              <span>{loading ? "LAUNCHING..." : "LAUNCH INSTANTLY"}</span>
-              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: 1, color: "rgba(200,238,248,0.82)" }}>No account required</span>
-            </button>
+          <div style={{ background: "rgba(5,12,25,0.92)", border: "1px solid rgba(91,196,232,0.2)", borderTop: "2px solid rgba(91,196,232,0.5)", borderRadius: 16, padding: "26px 24px", boxShadow: "0 0 60px rgba(91,196,232,0.07)" }}>
 
-            {guestError && <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", marginTop: 8 }}>{guestError}</div>}
-
-            {/* Email — secondary, but clearly explained */}
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)", textAlign: "center" }}>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "0 0 8px", fontFamily: "'Barlow',sans-serif", lineHeight: 1.5 }}>
-                Want to keep your progress between sessions?
-              </p>
-              <button onClick={() => setShowEmail(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.82)", fontSize: 13, fontFamily: "'Barlow',sans-serif", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.35)", padding: 0, fontWeight: 500 }}>
-                Sign in with email
-              </button>
+            {/* Username field — always required */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 2.5, color: "rgba(91,196,232,0.55)", marginBottom: 8 }}>CHOOSE YOUR CALLSIGN</div>
+              <input
+                type="text"
+                placeholder="Commander name..."
+                value={username}
+                maxLength={20}
+                onChange={e => { setUsername(e.target.value); setError(""); }}
+                onKeyDown={e => e.key === "Enter" && !showEmail && handleGuest()}
+                style={{ ...inputStyle, border: usernameValid ? "1px solid rgba(91,196,232,0.35)" : "1px solid rgba(255,255,255,0.16)" }}
+                autoFocus
+              />
             </div>
-          </>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "0 0 18px" }} />
+
+            {showEmail ? (
+              <>
+                <button onClick={() => { setShowEmail(false); setError(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, cursor: "pointer", padding: 0, marginBottom: 14 }}>← BACK</button>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Barlow',sans-serif", marginBottom: 12 }}>
+                  Spielstand wird dauerhaft gespeichert. Kein Passwort nötig.
+                </div>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setError(""); }}
+                  onKeyDown={e => e.key === "Enter" && handleEmailLogin()}
+                  style={inputStyle}
+                />
+                <button onClick={handleEmailLogin} disabled={loading} style={{ width: "100%", padding: "12px", background: "rgba(91,196,232,0.15)", border: "1px solid rgba(91,196,232,0.4)", borderRadius: 8, color: "#7dd4f0", fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
+                  {loading ? "SENDE LINK..." : "LOGIN-LINK SENDEN"}
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Guest CTA */}
+                <button
+                  onClick={handleGuest}
+                  disabled={loading}
+                  className="cta-pulse"
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.animationPlayState = "paused"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.animationPlayState = "running"; }}
+                  style={{ width: "100%", padding: "16px 24px", background: "linear-gradient(135deg, rgba(91,196,232,0.28), rgba(91,196,232,0.11))", border: "1px solid rgba(91,196,232,0.55)", borderRadius: 10, color: "#c8eef8", fontSize: 15, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, cursor: "pointer", opacity: loading ? 0.6 : 1, transition: "transform 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 12 }}
+                >
+                  <span>{loading ? "STARTE..." : "ALS GAST SPIELEN"}</span>
+                  <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: 1, color: "rgba(200,238,248,0.65)" }}>Kein Account erforderlich</span>
+                </button>
+
+                {/* Email secondary */}
+                <div style={{ textAlign: "center" }}>
+                  <button onClick={() => { setShowEmail(true); setError(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "'Barlow',sans-serif", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.25)", padding: 0 }}>
+                    Fortschritt dauerhaft speichern? Mit E-Mail einloggen.
+                  </button>
+                </div>
+              </>
+            )}
+
+            {error && (
+              <div style={{ marginTop: 10, fontSize: 12, color: "#ff8080", fontFamily: "'Barlow',sans-serif", textAlign: "center" }}>{error}</div>
+            )}
+          </div>
         )}
       </div>
 
@@ -2012,6 +2226,9 @@ export default function App() {
   const [screen, setScreen]     = useState(null);
   const [screenData, setScreenData] = useState(null);
 
+  const [username, setUsername]         = useState("Commander");
+  const [offlineSummary, setOfflineSummary] = useState(null);
+
   const [inventory, setInventory] = useState({});
   const [credits, setCredits]     = useState(0);
   const [miningXP, setMiningXP]       = useState(0);
@@ -2030,12 +2247,13 @@ export default function App() {
   const [inventoryOpen, setInventoryOpen]     = useState(false);
   const [navDir, setNavDir]                   = useState("tab");
 
-  const timerRef         = useRef(null);
+  const timerRef          = useRef(null);
   const salvagingTimerRef = useRef(null);
-  const refTimerRef      = useRef(null);
-  const travelTimerRef   = useRef(null);
-  const toastId          = useRef(0);
-  const saveTimer        = useRef(null);
+  const refTimerRef       = useRef(null);
+  const travelTimerRef    = useRef(null);
+  const toastId           = useRef(0);
+  const saveTimer         = useRef(null);
+  const pendingUsername   = useRef(null); // username entered on login screen before auth completes
 
   // ── AUTH ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2050,16 +2268,128 @@ export default function App() {
   // ── LOAD GAME ──────────────────────────────────────────────────────────
   const loadGame = async (userId) => {
     const { data } = await supabase.from("game_saves").select("save_data").eq("user_id", userId).single();
-    if (data?.save_data) {
-      const s = data.save_data;
-      if (s.inventory)      setInventory(s.inventory);
-      if (s.credits)        setCredits(s.credits);
-      if (s.miningXP)       setMiningXP(s.miningXP);
-      if (s.salvagingXP)    setSalvagingXP(s.salvagingXP);
-      if (s.refiningXP)     setRefiningXP(s.refiningXP);
-      if (s.installed)      setInstalled(s.installed);
-      if (s.buildingLevels)  setBuildingLevels(s.buildingLevels);
-      if (s.researchedTechs) setResearchedTechs(s.researchedTechs);
+
+    // Pick up username from ref (guest) or localStorage (magic link page reload)
+    const lsUsername = localStorage.getItem("vf_pending_username");
+    const resolvedPending = pendingUsername.current || lsUsername || null;
+    if (lsUsername) localStorage.removeItem("vf_pending_username");
+    pendingUsername.current = null;
+
+    if (!data?.save_data) {
+      // New account — apply username chosen on login screen
+      if (resolvedPending) setUsername(resolvedPending);
+      return;
+    }
+
+    const s = data.save_data;
+
+    // Username: prefer saved value, fall back to what was entered on login screen
+    setUsername(s.username || resolvedPending || "Commander");
+
+    // Base state
+    let inv   = s.inventory || {};
+    let mXP   = s.miningXP   || 0;
+    let salXP = s.salvagingXP || 0;
+    let refXP = s.refiningXP  || 0;
+    if (s.credits)         setCredits(s.credits);
+    if (s.installed)       setInstalled(s.installed);
+    if (s.buildingLevels)  setBuildingLevels(s.buildingLevels);
+    if (s.researchedTechs) setResearchedTechs(s.researchedTechs);
+
+    // ── Offline progress ──────────────────────────────────────────────
+    const elapsedSec = s.savedAt
+      ? Math.min((Date.now() - s.savedAt) / 1000, 8 * 3600) // cap 8 h
+      : 0;
+
+    // Track what was gathered offline for the summary modal
+    const offlineGathered = {};
+
+    // Mining
+    let newMining = s.mining || null;
+    if (newMining && elapsedSec > 0) {
+      const sec  = SECTORS.find(x => x.id === newMining.sectorId);
+      const mRef = sec?.materials.find(m => m.id === newMining.matId);
+      if (mRef) {
+        const timeLeft = mRef.time * (1 - (newMining.progress || 0));
+        if (elapsedSec >= timeLeft) {
+          const extra      = elapsedSec - timeLeft;
+          const totalNew   = 1 + Math.floor(extra / mRef.time);
+          const newProg    = (extra % mRef.time) / mRef.time;
+          const totalDone  = (newMining.completions || 0) + totalNew;
+          const gained     = totalNew * mRef.amount;
+          inv  = { ...inv, [mRef.id]: (inv[mRef.id] || 0) + gained };
+          mXP += totalNew * mRef.time * 0.8;
+          offlineGathered[mRef.id] = (offlineGathered[mRef.id] || 0) + gained;
+          newMining = (newMining.targetCompletions && totalDone >= newMining.targetCompletions)
+            ? null
+            : { ...newMining, progress: newProg, completions: totalDone };
+        } else {
+          newMining = { ...newMining, progress: (newMining.progress || 0) + elapsedSec / mRef.time };
+        }
+      }
+    }
+
+    // Salvaging
+    let newSalvaging = s.salvaging || null;
+    if (newSalvaging && elapsedSec > 0) {
+      const mat = SALVAGING_MATS.find(m => m.id === newSalvaging.matId);
+      if (mat) {
+        const timeLeft = mat.time * (1 - (newSalvaging.progress || 0));
+        if (elapsedSec >= timeLeft) {
+          const extra      = elapsedSec - timeLeft;
+          const totalNew   = 1 + Math.floor(extra / mat.time);
+          const newProg    = (extra % mat.time) / mat.time;
+          const totalDone  = (newSalvaging.completions || 0) + totalNew;
+          const gained     = totalNew * mat.amount;
+          inv   = { ...inv, [mat.id]: (inv[mat.id] || 0) + gained };
+          salXP += totalNew * mat.time * 0.2;
+          offlineGathered[mat.id] = (offlineGathered[mat.id] || 0) + gained;
+          newSalvaging = (newSalvaging.targetCompletions && totalDone >= newSalvaging.targetCompletions)
+            ? null
+            : { ...newSalvaging, progress: newProg, completions: totalDone };
+        } else {
+          newSalvaging = { ...newSalvaging, progress: (newSalvaging.progress || 0) + elapsedSec / mat.time };
+        }
+      }
+    }
+
+    // Refining queue
+    let newRefQueue = [...(s.refQueue || [])];
+    let refiningDone = 0;
+    if (newRefQueue.length > 0 && elapsedSec > 0) {
+      let t = elapsedSec;
+      const remaining = [];
+      for (const item of newRefQueue) {
+        if (t <= 0) { remaining.push(item); continue; }
+        const recipe  = RECIPES.find(r => r.id === item.recipeId);
+        if (!recipe)  { remaining.push(item); continue; }
+        const timeLeft = recipe.time * (1 - (item.progress || 0));
+        if (t >= timeLeft) {
+          inv   = { ...inv, [recipe.id]: (inv[recipe.id] || 0) + 1 };
+          refXP += recipe.time;
+          t    -= timeLeft;
+          refiningDone++;
+          offlineGathered[recipe.id] = (offlineGathered[recipe.id] || 0) + 1;
+        } else {
+          remaining.push({ ...item, progress: (item.progress || 0) + t / recipe.time });
+          t = 0;
+        }
+      }
+      newRefQueue = remaining;
+    }
+
+    // Apply everything
+    setInventory(inv);
+    setMiningXP(mXP);
+    setSalvagingXP(salXP);
+    setRefiningXP(refXP);
+    setMining(newMining);
+    setSalvaging(newSalvaging);
+    setRefQueue(newRefQueue);
+
+    // Show offline summary if meaningful time passed
+    if (elapsedSec > 60) {
+      setOfflineSummary({ elapsedSec, gathered: offlineGathered, refiningDone });
     }
   };
 
@@ -2068,10 +2398,16 @@ export default function App() {
     if (!session?.user) return;
     await supabase.from("game_saves").upsert({
       user_id: session.user.id,
-      save_data: { inventory, credits, miningXP, salvagingXP, refiningXP, installed, buildingLevels, researchedTechs },
+      save_data: {
+        username,
+        inventory, credits, miningXP, salvagingXP, refiningXP,
+        installed, buildingLevels, researchedTechs,
+        mining, salvaging, refQueue,
+        savedAt: Date.now(),
+      },
       updated_at: new Date().toISOString()
     });
-  }, [session, inventory, credits, miningXP, salvagingXP, refiningXP, installed]);
+  }, [session, username, inventory, credits, miningXP, salvagingXP, refiningXP, installed, mining, salvaging, refQueue]);
 
   useEffect(() => {
     if (!session) return;
@@ -2089,28 +2425,6 @@ export default function App() {
   const [ambC1, ambC2] = currentSector.ambient || ["#5bc4e8", "#5bc4e8"];
   const rank        = getRank(totalLevel);
 
-  const activeTask = (() => {
-    if (mining) {
-      const sector = SECTORS.find(s => s.id === mining.sectorId);
-      const matRef = sector?.materials.find(m => m.id === mining.matId);
-      const item   = ITEMS[mining.matId];
-      if (!item || !matRef) return null;
-      return { icon: item.icon, name: item.name, secondsLeft: Math.ceil(matRef.time * (1 - (mining.progress || 0))) };
-    }
-    if (salvaging) {
-      const mat  = SALVAGING_MATS.find(m => m.id === salvaging.matId);
-      const item = ITEMS[salvaging.matId];
-      if (!item || !mat) return null;
-      return { icon: item.icon, name: item.name, secondsLeft: Math.ceil(mat.time * (1 - (salvaging.progress || 0))) };
-    }
-    if (refQueue.length > 0) {
-      const recipe = RECIPES.find(r => r.id === refQueue[0].recipeId);
-      const item   = ITEMS[recipe?.id];
-      if (!item || !recipe) return null;
-      return { icon: item.icon, name: item.name, secondsLeft: Math.ceil(recipe.time * (1 - (refQueue[0].progress || 0))) };
-    }
-    return null;
-  })();
 
   const addToast = useCallback((msg, icon, color = "#e8a838") => {
     const id = ++toastId.current;
@@ -2255,6 +2569,7 @@ export default function App() {
 
   const startMining = (sectorId, matId, quantity = null) => {
     if (mining?.sectorId === sectorId && mining?.matId === matId) { setMining(null); addLog("⏹ Mining stopped"); return; }
+    setSalvaging(null);
     setMining({ sectorId, matId, progress: 0, completions: 0, targetCompletions: quantity });
     const s = SECTORS.find(s => s.id === sectorId), m = s?.materials.find(m => m.id === matId);
     const item = ITEMS[m?.id];
@@ -2263,6 +2578,7 @@ export default function App() {
 
   const startSalvaging = (matId, quantity = null) => {
     if (salvaging?.matId === matId) { setSalvaging(null); addLog("⏹ Salvaging stopped"); return; }
+    setMining(null);
     setSalvaging({ matId, progress: 0, completions: 0, targetCompletions: quantity });
     const mat = SALVAGING_MATS.find(m => m.id === matId);
     const item = ITEMS[mat?.id];
@@ -2329,7 +2645,7 @@ export default function App() {
   const activeItem   = activeMat ? ITEMS[activeMat.id] : null;
 
   const BOTTOM_NAV = [
-    { id: "ort",    label: "ORT",    icon: "📍" },
+    { id: "ort",    label: "SECTOR", icon: "📍" },
     { id: "ship",   label: "GALAXY", icon: "🌌" },
     { id: "profil", label: "PROFIL", icon: "👤" },
   ];
@@ -2353,7 +2669,7 @@ export default function App() {
         <div style={{ position: "absolute", top: "-10%", left: "50%", width: "80%", height: "60%", background: "radial-gradient(ellipse, rgba(91,196,232,0.18) 0%, transparent 65%)", animation: "nebulaDrift 18s ease-in-out infinite" }} />
         <div style={{ position: "absolute", bottom: "5%", right: "5%", width: "50%", height: "50%", background: "radial-gradient(ellipse, rgba(110,60,220,0.14) 0%, transparent 70%)", animation: "nebulaDrift 24s ease-in-out infinite reverse" }} />
       </div>
-      <LoginScreen />
+      <LoginScreen onBeforeLogin={(uname) => { pendingUsername.current = uname; }} />
     </>
   );
 
@@ -2361,6 +2677,13 @@ export default function App() {
     <>
       <style>{CSS}</style>
       <Toast toasts={toasts} />
+      {offlineSummary && (
+        <OfflineSummaryModal
+          summary={offlineSummary}
+          username={username}
+          onDismiss={() => setOfflineSummary(null)}
+        />
+      )}
 
       {/* Background */}
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, background: "linear-gradient(160deg, #0a1628 0%, #06080f 45%, #110820 100%)" }}>
@@ -2372,26 +2695,19 @@ export default function App() {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px)" }} />
       </div>
 
-      <div className="app-panel" style={{ height: "100vh", maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", zIndex: 1, overflow: "hidden" }}>
+      <div className="app-panel" style={{ height: "100dvh", maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", zIndex: 1, overflow: "hidden" }}>
 
         {/* ── PERSISTENT TOP HEADER ── */}
         <div style={{ height: 44, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(91,196,232,0.1)", background: "rgba(5,12,25,0.92)", backdropFilter: "blur(12px)", flexShrink: 0, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: `radial-gradient(circle at 35% 35%, ${rank.color}44, ${rank.color}0d)`, border: `1px solid ${rank.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🧑‍🚀</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 0.5, color: "rgba(255,255,255,0.78)", lineHeight: 1.2 }}>Commander Nova</div>
+              <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 0.5, color: "rgba(255,255,255,0.78)", lineHeight: 1.2 }}>{username}</div>
               <div style={{ fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: rank.color, lineHeight: 1.2 }}>{rank.title.toUpperCase()}</div>
             </div>
           </div>
           <span className="font-display" onClick={() => { setTab("ort"); setScreen(null); setScreenData(null); }} style={{ fontSize: 18, letterSpacing: 5, color: "#5bc4e8", textShadow: "0 0 20px rgba(91,196,232,0.5)", position: "absolute", left: "50%", transform: "translateX(-50%)", cursor: "pointer", userSelect: "none" }}>VF</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {activeTask && (
-              <div className="header-active-task">
-                <span>{activeTask.icon}</span>
-                <span className="header-task-name">{activeTask.name}</span>
-                <span className="header-task-timer">{activeTask.secondsLeft}s</span>
-              </div>
-            )}
             <div style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Barlow Condensed',sans-serif" }}>
               <span onClick={() => setInventoryOpen(true)} style={{ fontSize: 11, color: "rgba(91,196,232,0.55)", letterSpacing: 0.3, cursor: "pointer" }}>🎒</span>
               <span style={{ color: "rgba(255,255,255,0.18)", fontSize: 10 }}>·</span>
@@ -2401,51 +2717,47 @@ export default function App() {
           </div>
         </div>
 
-        {/* ── BREADCRUMB (sub-screens only) ── */}
-        {screen && (
-          <div style={{ height: 34, padding: "0 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(91,196,232,0.08)", background: "rgba(3,8,18,0.72)", flexShrink: 0 }}>
-            <button
-              onClick={() => {
-                setNavDir("back");
-                if (screen === "sectorList" || screen === "base") setScreen(null);
-                else if (screen === "sectorDetail") { setScreen("sectorList"); }
-                else if (screen === "refinery") setScreen(null);
-                else if (screen === "miningDetail" || screen === "refiningDetail" ||
-                         screen === "salvagingDetail" || screen === "craftingDetail" ||
-                         screen === "buildingDetail") setScreen(null);
-              }}
-              style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "rgba(91,196,232,0.5)", cursor: "pointer", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, padding: 0, textTransform: "uppercase", transition: "color 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.color = "rgba(91,196,232,0.85)"}
-              onMouseLeave={e => e.currentTarget.style.color = "rgba(91,196,232,0.5)"}
-            >
-              ← {
-                screen === "sectorList"      ? "ORT"       :
-                screen === "sectorDetail"    ? "SECTOR"    :
-                screen === "base"            ? "ORT"       :
-                screen === "refinery"        ? "ORT"       :
-                screen === "miningDetail"    ? "ORT"       :
-                screen === "refiningDetail"  ? "ORT"       :
-                screen === "salvagingDetail" ? "ORT"       :
-                screen === "craftingDetail"  ? "ORT"       :
-                screen === "buildingDetail" ? "ORT"       : "ZURÜCK"
-              }
-            </button>
-            <span style={{ color: "rgba(91,196,232,0.2)", fontSize: 10, userSelect: "none" }}>/</span>
-            <span style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
-              {
-                screen === "sectorList"      ? "SECTOR"       :
-                screen === "sectorDetail"    ? (screenData?.name || "").toUpperCase() :
-                screen === "base"            ? "BASIS"         :
-                screen === "refinery"        ? "RAFFINERIE"   :
-                screen === "miningDetail"    ? "MINING"        :
-                screen === "refiningDetail"  ? "REFINING"      :
-                screen === "salvagingDetail" ? "SALVAGING"     :
-                screen === "craftingDetail"  ? "CRAFTING"      :
-                screen === "buildingDetail" ? (BUILDINGS.find(b => b.id === screenData)?.name || "GEBÄUDE").toUpperCase() : ""
-              }
+        {/* ── BREADCRUMB (always visible → no layout jump) ── */}
+        <div style={{ height: 34, padding: "0 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(91,196,232,0.08)", background: "rgba(3,8,18,0.72)", flexShrink: 0 }}>
+          {screen ? (
+            <>
+              <button
+                onClick={() => {
+                  setNavDir("back");
+                  if (screen === "sectorList" || screen === "base") setScreen(null);
+                  else if (screen === "sectorDetail") setScreen("sectorList");
+                  else if (screen === "refinery") setScreen(null);
+                  else if (screen === "miningDetail" || screen === "refiningDetail" ||
+                           screen === "salvagingDetail" || screen === "craftingDetail" ||
+                           screen === "buildingDetail") setScreen(null);
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "rgba(91,196,232,0.5)", cursor: "pointer", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, padding: 0, textTransform: "uppercase", transition: "color 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.color = "rgba(91,196,232,0.85)"}
+                onMouseLeave={e => e.currentTarget.style.color = "rgba(91,196,232,0.5)"}
+              >
+                ← {screen === "sectorDetail" ? "SECTORS" : "SECTOR"}
+              </button>
+              <span style={{ color: "rgba(91,196,232,0.2)", fontSize: 10, userSelect: "none" }}>/</span>
+              <span style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
+                {
+                  screen === "sectorList"      ? "SECTORS"      :
+                  screen === "sectorDetail"    ? (screenData?.name || "").toUpperCase() :
+                  screen === "base"            ? "BASE"          :
+                  screen === "refinery"        ? "REFINERY"      :
+                  screen === "miningDetail"    ? "MINING"        :
+                  screen === "refiningDetail"  ? "REFINING"      :
+                  screen === "salvagingDetail" ? "SALVAGING"     :
+                  screen === "craftingDetail"  ? "CRAFTING"      :
+                  screen === "buildingDetail"  ? (BUILDINGS.find(b => b.id === screenData)?.name || "BUILDING").toUpperCase() : ""
+                }
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
+              {tab === "ort" ? "SECTOR" : tab === "ship" ? "GALAXY" : "PROFILE"}
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── SCROLLABLE CONTENT ── */}
         <div key={`${tab}-${screen || "root"}`} className={navDir === "fwd" ? "screen-fwd" : navDir === "back" ? "screen-back" : "screen-tab"} style={{ flex: 1, overflowY: "auto" }}>
@@ -2460,7 +2772,15 @@ export default function App() {
               onStartMining={startMining} />
           )}
           {tab === "ort" && screen === "base" && (
-            <BaseScreen refQueue={refQueue} onOpenBuilding={id => { if (id === "refinery") setScreen("refinery"); }} />
+            <BaseScreen
+              refQueue={refQueue}
+              buildingLevels={buildingLevels}
+              onOpenBuilding={id => {
+                setNavDir("fwd");
+                if (id === "refinery") { setScreen("refinery"); return; }
+                setScreen("buildingDetail"); setScreenData(id);
+              }}
+            />
           )}
           {tab === "ort" && screen === "refinery" && (
             <RefineryScreen inventory={inventory} credits={credits} refQueue={refQueue} moduleLevel={moduleLevel}
@@ -2523,25 +2843,54 @@ export default function App() {
 
         </div>
 
-        {/* ── MINING ACTIVITY BAR (SHIP + PROFIL tabs when mining is active) ── */}
-        {mining && tab !== "ort" && (
-          <div style={{ background: "rgba(4,8,18,0.98)", backdropFilter: "blur(20px)", borderTop: `2px solid ${activeSector?.color || "#e8a838"}66`, padding: "10px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 -4px 24px rgba(0,0,0,0.6)", position: "relative", flexShrink: 0 }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${activeSector?.color || "#e8a838"}99, transparent)`, pointerEvents: "none" }} />
-            <div style={{ width: 36, height: 36, borderRadius: 3, background: `${activeSector?.color}18`, border: `1px solid ${activeSector?.color}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-              {activeItem?.icon}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, textTransform: "uppercase" }}>MINING: {activeItem?.name}</span>
-                <span style={{ fontSize: 10, color: activeSector?.color, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5 }}>{activeSector?.name} · RUNS: {mining.completions || 0}</span>
+        {/* ── ACTIVITY BAR (all tabs, all active tasks) ── */}
+        {(mining || salvaging || refQueue.length > 0) && (() => {
+          const salvMat   = salvaging ? SALVAGING_MATS.find(m => m.id === salvaging.matId) : null;
+          const salvItem  = salvaging ? ITEMS[salvaging.matId] : null;
+          const refRecipe = refQueue.length > 0 ? RECIPES.find(r => r.id === refQueue[0].recipeId) : null;
+          const refItem   = refRecipe ? ITEMS[refRecipe.id] : null;
+          const stopBtn   = (onClick) => (
+            <button onClick={onClick} style={{ background: "rgba(232,80,80,0.07)", border: "1px solid rgba(232,80,80,0.28)", color: "rgba(232,80,80,0.75)", borderRadius: 2, padding: "5px 10px", fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2, cursor: "pointer", flexShrink: 0, textTransform: "uppercase" }}>STOP</button>
+          );
+          const row = (icon, color, left, right, progress, onStop) => (
+            <div style={{ padding: "8px 16px", display: "flex", alignItems: "center", gap: 12, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ width: 28, height: 28, borderRadius: 3, background: color + "18", border: `1px solid ${color}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, textTransform: "uppercase", color: "#fff" }}>{left}</span>
+                  <span style={{ fontSize: 10, color, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>{right}</span>
+                </div>
+                <Bar value={progress} color={color} height={3} glow />
               </div>
-              <Bar value={mining.progress || 0} color={activeSector?.color || "#e8a838"} height={4} glow />
+              {stopBtn(onStop)}
             </div>
-            <button onClick={() => { setMining(null); addLog("⏹ Mining stopped"); }} style={{ background: "rgba(232,80,80,0.07)", border: "1px solid rgba(232,80,80,0.28)", color: "rgba(232,80,80,0.75)", borderRadius: 2, padding: "7px 14px", fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2, cursor: "pointer", flexShrink: 0, textTransform: "uppercase" }}>
-              STOP
-            </button>
-          </div>
-        )}
+          );
+          return (
+            <div style={{ background: "rgba(4,8,18,0.98)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(91,196,232,0.15)", boxShadow: "0 -4px 24px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+              {mining && activeItem && activeSector && row(
+                activeItem.icon, activeSector.color,
+                `⛏ ${activeItem.name}`,
+                `${activeSector.name} · ${Math.ceil((activeMat?.time || 10) * (1 - (mining.progress || 0)))}s · ×${mining.completions || 0}`,
+                mining.progress || 0,
+                () => setMining(null)
+              )}
+              {salvaging && salvItem && row(
+                salvItem.icon, "#3fa7d6",
+                `🔧 ${salvItem.name}`,
+                `${Math.ceil((salvMat?.time || 10) * (1 - (salvaging.progress || 0)))}s`,
+                salvaging.progress || 0,
+                () => setSalvaging(null)
+              )}
+              {refQueue.length > 0 && refItem && row(
+                refItem.icon, "#5ec26a",
+                `⚗️ ${refItem.name}`,
+                `Queue: ${refQueue.length} · ${Math.ceil((refRecipe?.time || 10) * (1 - (refQueue[0].progress || 0)))}s`,
+                refQueue[0].progress || 0,
+                () => setRefQueue([])
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── PERSISTENT BOTTOM NAV ── */}
         <div style={{ background: "rgba(4,8,18,0.97)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(91,196,232,0.12)", display: "flex", flexShrink: 0 }}>
