@@ -40,7 +40,7 @@ const ITEMS = {
   void_crystal: { name: "Void Crystal",     icon: "💜", rarity: "rare",      category: "refined",  flavor: "Stabilized voidstone. Factions will pay anything for it. Don't ask why." },
   neutrite_core:{ name: "Neutrite Core",    icon: "💥", rarity: "legendary", category: "refined",  flavor: "The most valuable object you can carry. Handle with extreme caution." },
   // Mining – Abandoned Planet
-  ruined_stone: { name: "Ruined Stone",     icon: "🪨", rarity: "common",    category: "raw",      flavor: "Brocken eingestürzter Strukturen. Überall hier." },
+  ruined_stone: { name: "Raw Stone",         icon: "🪨", rarity: "common",    category: "raw",      flavor: "Brocken eingestürzter Strukturen. Überall hier." },
   // Salvaging materials
   scrap_metal:  { name: "Scrap Metal",      icon: "🔩", rarity: "common",    category: "raw",      flavor: "Salvaged from derelict hulls. Worth more melted down than intact." },
   wiring:       { name: "Frayed Wiring",    icon: "🔌", rarity: "common",    category: "raw",      flavor: "Zerfranste Kabel aus dem alten Kontrollzentrum." },
@@ -152,7 +152,7 @@ const BUILDINGS = [
     desc: "Unlock new technologies and expand your capabilities.",
     available: true,
     levels: [
-      { level: 1, label: "1 research slot · speed 1×",   cost: null },
+      { level: 1, label: "1 research slot · speed 1×",   cost: { ruined_stone: 20, scrap_metal: 5 } },
       { level: 2, label: "2 research slots · speed 1.5×", cost: { credits: 200, ref_silicate: 5 } },
       { level: 3, label: "3 research slots · speed 2×",   cost: { credits: 600, ferrite_plate: 4 } },
     ],
@@ -160,12 +160,13 @@ const BUILDINGS = [
 ];
 
 const LAB_TECHNOLOGIES = [
+  { id: "basic_refining", name: "Basic Refining",      icon: "⚗️", color: "#5ec26a", available: true,
+    cost: { ruined_stone: 10, scrap_metal: 3 },
+    desc: "Enables basic ore refining at the Abandoned Planet." },
   { id: "warp_tech",    name: "Warp Drive",          icon: "🌀", color: "#5bc4e8", available: true,
     desc: "Unlocks new star systems and exploration routes." },
   { id: "adv_refining", name: "Adv. Refining",        icon: "⚗️", color: "#5ec26a", available: true,
     desc: "Increases refining output by 25% per upgrade tier." },
-  { id: "cargo_tech",   name: "Cargo Expansion",      icon: "📦", color: "#e8a838", available: true,
-    desc: "Expands your ship's cargo capacity by 50 units per tier." },
   { id: "combat",       name: "Combat Systems",        icon: "⚔️", color: "#e84040", available: false,
     desc: "Unlocks combat encounters, weapon modules, and hostile sectors." },
   { id: "deep_scan",    name: "Deep Scan",             icon: "🔭", color: "#a855f7", available: false,
@@ -176,9 +177,6 @@ const LAB_TECHNOLOGIES = [
 
 // Ship upgrades
 const SHIP_UPGRADES = [
-  { id: "cargo_1",  cat: "cargo",  name: "Cargo Expansion I",   icon: "📦", desc: "+25 cargo capacity",                    effect: { cargo: 25  }, cost: { credits: 120 },                               req: {} },
-  { id: "cargo_2",  cat: "cargo",  name: "Cargo Expansion II",  icon: "📦", desc: "+50 cargo capacity",                    effect: { cargo: 50  }, cost: { credits: 450,  ref_silicate: 5 },             req: { cargo_1: true } },
-  { id: "cargo_3",  cat: "cargo",  name: "Cargo Expansion III", icon: "📦", desc: "+100 cargo capacity",                   effect: { cargo: 100 }, cost: { credits: 1400, ferrite_plate: 4 },            req: { cargo_2: true } },
   { id: "warp_1",   cat: "warp",   name: "Warp Drive I",        icon: "🌀", desc: "Unlocks Cryon Fields",                  effect: { warp: 1    }, cost: { credits: 300,  ref_silicate: 8 },             req: {} },
   { id: "warp_2",   cat: "warp",   name: "Warp Drive II",       icon: "🌀", desc: "Unlocks Outer Void",                    effect: { warp: 2    }, cost: { credits: 900,  ferrite_plate: 3, cryon_cell: 1 }, req: { warp_1: true } },
   { id: "warp_3",   cat: "warp",   name: "Warp Drive III",      icon: "🌀", desc: "Unlocks Neutron Rim",                   effect: { warp: 3    }, cost: { credits: 2500, cryon_cell: 3, void_crystal: 1 }, req: { warp_2: true } },
@@ -284,9 +282,6 @@ function Bar({ value, color, height = 4, glow }) {
   );
 }
 
-function Divider({ color = "rgba(255,255,255,0.06)" }) {
-  return <div style={{ height: 1, background: color, margin: "0" }} />;
-}
 
 function SectionLabel({ children }) {
   return (
@@ -298,7 +293,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function RowItem({ icon, name, level, locked, active, badge, onClick, animDelay = 0 }) {
+function RowItem({ icon, name, level, locked, lockReason, active, badge, onClick, animDelay = 0 }) {
   return (
     <div
       onClick={onClick || undefined}
@@ -307,7 +302,12 @@ function RowItem({ icon, name, level, locked, active, badge, onClick, animDelay 
       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{ fontSize: 18, width: 34, flexShrink: 0, lineHeight: 1 }}>{icon}</span>
-      <span style={{ flex: 1, fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1, color: locked ? "rgba(255,255,255,0.38)" : "#fff", textTransform: "uppercase" }}>{name}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 1, color: locked ? "rgba(255,255,255,0.38)" : "#fff", textTransform: "uppercase" }}>{name}</span>
+        {locked && lockReason && (
+          <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.22)", letterSpacing: 0.5, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lockReason}</div>
+        )}
+      </div>
       {active && !locked && (
         <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#5ec26a", boxShadow: "0 0 7px #5ec26a", animation: "pulseGlow 1.4s infinite", marginRight: 8, flexShrink: 0 }} />
       )}
@@ -383,23 +383,13 @@ function BuildingGridCard({ building, level, onClick }) {
         </div>
         <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 1,
           color: isLocked ? "rgba(255,255,255,0.18)" : building.color }}>
-          {isLocked ? "LOCKED" : `LV ${level}`}
+          {isLocked ? "LOCKED" : level === 0 ? "BUILD" : `LV ${level}`}
         </div>
       </div>
     </div>
   );
 }
 
-function BackButton({ onBack, label }) {
-  return (
-    <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: "rgba(91,196,232,0.45)", fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2, cursor: "pointer", padding: "14px 18px 0", transition: "color 0.15s", textTransform: "uppercase" }}
-      onMouseEnter={e => e.currentTarget.style.color = "rgba(91,196,232,0.85)"}
-      onMouseLeave={e => e.currentTarget.style.color = "rgba(91,196,232,0.45)"}
-    >
-      [←] {label}
-    </button>
-  );
-}
 
 function Toast({ toasts }) {
   return (
@@ -414,42 +404,13 @@ function Toast({ toasts }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INVENTORY ITEM CARD
-// ─────────────────────────────────────────────────────────────────────────────
-function ItemCard({ itemId, quantity }) {
-  const item = ITEMS[itemId];
-  if (!item) return null;
-  const rar = RARITY[item.rarity];
-  return (
-    <div style={{ background: "rgba(3,8,18,0.78)", border: `1px solid ${rar.color}30`, borderLeft: `3px solid ${rar.color}60`, borderRadius: 3, padding: "14px", animation: "fadeIn 0.2s ease", transition: "border-color 0.2s" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 4, background: rar.color + "18", border: `1px solid ${rar.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: rar.glow ? `0 0 16px ${rar.color}40` : "none" }}>
-          {item.icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, color: "#fff", textTransform: "uppercase" }}>{item.name}</span>
-            <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Barlow Condensed',sans-serif", color: rar.color, flexShrink: 0 }}>×{quantity}</span>
-          </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-            <RarityBadge rarity={item.rarity} />
-            <Tag color="rgba(91,196,232,0.3)">{item.category === "raw" ? "RAW MAT" : "REF GOOD"}</Tag>
-          </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontStyle: "italic", lineHeight: 1.5 }}>{item.flavor}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTOR TAB  (direct sector selection — no activity picker needed yet)
 // ─────────────────────────────────────────────────────────────────────────────
-function SectorTab({ mining, miningXP, warpLevel, maxCargo, cargo, onSelectSector }) {
+function SectorTab({ mining, miningXP, warpLevel, onSelectSector }) {
   const level     = getLevel(miningXP);
-  const cargoFull = cargo >= maxCargo;
 
   // 1-away rule: show unlocked + the very next locked tier only
   const visibleSectors = SECTORS.filter(s => s.reqWarp <= warpLevel + 1);
@@ -469,13 +430,6 @@ function SectorTab({ mining, miningXP, warpLevel, maxCargo, cargo, onSelectSecto
         <div style={{ flex: 1, minWidth: 20, height: 1, background: "linear-gradient(90deg, rgba(91,196,232,0.1), transparent)" }} />
       </div>
 
-      {/* Cargo full warning */}
-      {cargoFull && (
-        <div style={{ margin: "8px 16px 0", padding: "8px 12px", background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.22)", borderLeft: "3px solid rgba(232,168,56,0.55)", borderRadius: 3, fontSize: 11, color: "#e8a838", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>
-          CARGO FULL — unload at base before mining
-        </div>
-      )}
-
       {/* Sector cards */}
       <div style={{ padding: "10px 16px 28px", display: "flex", flexDirection: "column", gap: 10 }}>
         {visibleSectors.map((sector, i) => {
@@ -483,11 +437,11 @@ function SectorTab({ mining, miningXP, warpLevel, maxCargo, cargo, onSelectSecto
           const isActive  = mining?.sectorId === sector.id;
           const activeMat = isActive ? sector.materials.find(m => m.id === mining.matId) : null;
           const activeItm = activeMat ? ITEMS[activeMat.id] : null;
-          const clickable = !locked && !cargoFull;
+          const clickable = !locked;
           return (
             <div key={sector.id}
               onClick={() => clickable && onSelectSector(sector)}
-              style={{ background: isActive ? `linear-gradient(135deg, rgba(3,8,18,0.98), ${sector.color}0d)` : "rgba(3,8,18,0.78)", border: `1px solid ${isActive ? sector.color + "40" : locked ? "rgba(91,196,232,0.05)" : "rgba(91,196,232,0.11)"}`, borderLeft: `3px solid ${isActive ? sector.color + "99" : locked ? "rgba(91,196,232,0.07)" : "rgba(91,196,232,0.2)"}`, borderRadius: 3, padding: "15px", cursor: clickable ? "pointer" : "default", opacity: locked ? 0.36 : cargoFull && !isActive ? 0.5 : 1, transition: "all 0.18s", animation: `slideUp ${0.08 + i * 0.06}s ease`, boxShadow: isActive ? `0 0 18px ${sector.color}12` : "none" }}
+              style={{ background: isActive ? `linear-gradient(135deg, rgba(3,8,18,0.98), ${sector.color}0d)` : "rgba(3,8,18,0.78)", border: `1px solid ${isActive ? sector.color + "40" : locked ? "rgba(91,196,232,0.05)" : "rgba(91,196,232,0.11)"}`, borderLeft: `3px solid ${isActive ? sector.color + "99" : locked ? "rgba(91,196,232,0.07)" : "rgba(91,196,232,0.2)"}`, borderRadius: 3, padding: "15px", cursor: clickable ? "pointer" : "default", opacity: locked ? 0.36 : 1, transition: "all 0.18s", animation: `slideUp ${0.08 + i * 0.06}s ease`, boxShadow: isActive ? `0 0 18px ${sector.color}12` : "none" }}
               onMouseEnter={e => { if (clickable) { e.currentTarget.style.borderColor = sector.color + "55"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = isActive ? sector.color + "40" : locked ? "rgba(91,196,232,0.05)" : "rgba(91,196,232,0.11)"; e.currentTarget.style.transform = "translateY(0)"; }}
             >
@@ -541,8 +495,7 @@ function SectorTab({ mining, miningXP, warpLevel, maxCargo, cargo, onSelectSecto
   );
 }
 
-function SectorScreen({ sector, mining, cargo, maxCargo, onStartMining }) {
-  const cargoFull = cargo >= maxCargo;
+function SectorScreen({ sector, mining, onStartMining }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "slideIn 0.2s ease" }}>
       <div style={{ padding: "12px 18px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: `linear-gradient(180deg, ${sector.color}0a 0%, transparent 100%)` }}>
@@ -556,12 +509,6 @@ function SectorScreen({ sector, mining, cargo, maxCargo, onStartMining }) {
         <p style={{ marginTop: 12, fontSize: 13, color: "rgba(255,255,255,0.4)", fontStyle: "italic", lineHeight: 1.6 }}>{sector.lore}</p>
       </div>
 
-      {cargoFull && (
-        <div style={{ margin: "12px 18px 0", padding: "10px 14px", background: "rgba(232,168,56,0.07)", border: "1px solid rgba(232,168,56,0.28)", borderRadius: 8, fontSize: 13, color: "#e8a838" }}>
-          ⚠️ Cargo hold full — return to base
-        </div>
-      )}
-
       <SectionLabel>AVAILABLE MATERIALS</SectionLabel>
       {sector.materials.map((matRef, i) => {
         const item = ITEMS[matRef.id];
@@ -569,9 +516,9 @@ function SectorScreen({ sector, mining, cargo, maxCargo, onStartMining }) {
         const isActive = mining?.sectorId === sector.id && mining?.matId === matRef.id;
         return (
           <div key={matRef.id}
-            onClick={() => !cargoFull && onStartMining(sector.id, matRef.id)}
-            style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", cursor: cargoFull ? "not-allowed" : "pointer", background: isActive ? `${sector.color}0e` : "transparent", borderBottom: "1px solid rgba(91,196,232,0.06)", borderLeft: `3px solid ${isActive ? sector.color : "transparent"}`, transition: "background 0.15s", position: "relative", overflow: "hidden", animation: `slideUp ${0.1 + i * 0.08}s ease`, opacity: cargoFull && !isActive ? 0.4 : 1 }}
-            onMouseEnter={e => { if (!cargoFull) e.currentTarget.style.background = isActive ? `${sector.color}16` : "rgba(91,196,232,0.04)"; }}
+            onClick={() => onStartMining(sector.id, matRef.id)}
+            style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", cursor: "pointer", background: isActive ? `${sector.color}0e` : "transparent", borderBottom: "1px solid rgba(91,196,232,0.06)", borderLeft: `3px solid ${isActive ? sector.color : "transparent"}`, transition: "background 0.15s", position: "relative", overflow: "hidden", animation: `slideUp ${0.1 + i * 0.08}s ease` }}
+            onMouseEnter={e => { e.currentTarget.style.background = isActive ? `${sector.color}16` : "rgba(91,196,232,0.04)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = isActive ? `${sector.color}0e` : "transparent"; }}
           >
             {isActive && <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(mining.progress || 0) * 100}%`, background: `${sector.color}0a`, pointerEvents: "none", transition: "width 0.12s linear" }} />}
@@ -695,7 +642,7 @@ function BaseScreen({ refQueue, onOpenBuilding }) {
   );
 }
 
-function RefineryScreen({ inventory, credits, refQueue, moduleLevel, onQueue, onSell }) {
+function RefineryScreen({ inventory, refQueue, moduleLevel, onQueue, onSell }) {
   const activeRecipe = refQueue.length > 0 ? RECIPES.find(r => r.id === refQueue[0]?.recipeId) : null;
   const activeItem = activeRecipe ? ITEMS[activeRecipe.id] : null;
   return (
@@ -945,13 +892,16 @@ const PROFIL_SKILLS = [
   { id: "combat",    icon: "⚔", name: "Combat",    color: "#e05252", locked: true },
 ];
 
-function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocation, miningXP, salvagingXP, refiningXP, onNavigate }) {
+function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTechs, currentLocation, miningXP, salvagingXP, refiningXP, onNavigate }) {
   const isMiningActive    = !!mining;
   const isSalvagingActive = !!salvaging;
   const isRefiningActive  = refQueue.length > 0;
   const miningLevel    = getLevel(miningXP   || 0);
   const salvagingLevel = getLevel(salvagingXP || 0);
   const refiningLevel  = getLevel(refiningXP  || 0);
+
+  const isLabBuilt         = (buildingLevels["lab"] ?? 0) >= 1;
+  const isRefiningUnlocked = !!researchedTechs?.["basic_refining"];
 
   // Refinery badge: "läuft · Xs"
   const activeRefRecipe = isRefiningActive ? RECIPES.find(r => r.id === refQueue[0]?.recipeId) : null;
@@ -1000,10 +950,15 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
       {/* ── Activities ── */}
       <SectionLabel>ACTIVITIES</SectionLabel>
       {ORT_SKILLS.map((skill, i) => {
-        const active   = (skill.id === "mining" && isMiningActive) || (skill.id === "salvaging" && isSalvagingActive) || (skill.id === "refining" && isRefiningActive);
-        const isLocked = !!skill.locked;
-        const badge    = skill.id === "refining" ? refBadge : null;
+        // Refining visibility/lock rules
+        if (skill.id === "refining" && !isLabBuilt) return null;
+        const refiningLocked = skill.id === "refining" && !isRefiningUnlocked;
+
+        const active   = (skill.id === "mining" && isMiningActive) || (skill.id === "salvaging" && isSalvagingActive) || (skill.id === "refining" && isRefiningActive && isRefiningUnlocked);
+        const isLocked = !!skill.locked || refiningLocked;
+        const badge    = skill.id === "refining" && isRefiningUnlocked ? refBadge : null;
         const level    = skill.id === "mining" ? miningLevel : skill.id === "salvaging" ? salvagingLevel : skill.id === "refining" ? refiningLevel : 1;
+        const lockReason = refiningLocked ? "Research Basic Refining in the Research Lab to unlock." : undefined;
         return (
           <RowItem
             key={skill.id}
@@ -1011,6 +966,7 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
             name={skill.name}
             level={level}
             locked={isLocked}
+            lockReason={lockReason}
             active={active}
             badge={badge}
             onClick={!isLocked ? () => handleSkillClick(skill.id) : null}
@@ -1026,7 +982,7 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
           <BuildingGridCard
             key={b.id}
             building={b}
-            level={buildingLevels[b.id] || 1}
+            level={buildingLevels[b.id] ?? 0}
             onClick={b.available ? () => onNavigate("buildingDetail", b.id) : null}
           />
         ))}
@@ -1046,13 +1002,24 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, currentLocatio
 // ─────────────────────────────────────────────────────────────────────────────
 // LAB SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
+function LabScreen({ buildingLevels, inventory, credits, onUpgrade, researchedTechs, onResearch }) {
   const [selectedTech, setSelectedTech] = useState(null);
 
-  const lab         = BUILDINGS.find(b => b.id === "lab");
-  const level       = buildingLevels?.["lab"] || 1;
-  const currentData = lab.levels?.find(l => l.level === level) || lab.levels?.[0];
+  const lab     = BUILDINGS.find(b => b.id === "lab");
+  const level   = buildingLevels?.["lab"] ?? 0;
+  const isBuilt = level >= 1;
+
   const nextData    = lab.levels?.find(l => l.level === level + 1);
+  const currentData = isBuilt ? (lab.levels?.find(l => l.level === level) || lab.levels?.[0]) : null;
+
+  const canAffordCost = (cost) => {
+    if (!cost) return false;
+    if (cost.credits && (credits || 0) < cost.credits) return false;
+    for (const [k, v] of Object.entries(cost)) {
+      if (k !== "credits" && (inventory?.[k] || 0) < v) return false;
+    }
+    return true;
+  };
 
   const formatCost = (cost) => {
     if (!cost) return "—";
@@ -1060,25 +1027,89 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
     if (cost.credits) parts.push(`${cost.credits} CR`);
     for (const [k, v] of Object.entries(cost)) {
       if (k === "credits") continue;
-      const item = ITEMS[k];
-      parts.push(`${v}× ${item?.name || k}`);
+      parts.push(`${v}× ${ITEMS[k]?.name || k}`);
     }
     return parts.join(" + ");
   };
 
-  const canAfford = nextData?.cost ? (() => {
-    const cost = nextData.cost;
-    if (cost.credits && (credits || 0) < cost.credits) return false;
-    for (const [k, v] of Object.entries(cost)) {
-      if (k !== "credits" && (inventory?.[k] || 0) < v) return false;
-    }
-    return true;
-  })() : false;
+  const canAffordBuild = nextData?.cost ? canAffordCost(nextData.cost) : false;
 
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
+  const handleTechClick = (tech) => {
+    setSelectedTech(prev => (prev?.id === tech.id ? null : tech));
+  };
 
-      {/* ── Section 1: Building image header ── */}
+  // ── Tech detail panel (replaces building header when a tech is selected) ──
+  const techIsDone = selectedTech ? !!researchedTechs?.[selectedTech.id] : false;
+  const canAffordTech = selectedTech?.cost ? canAffordCost(selectedTech.cost) : false;
+
+  const TechDetailPanel = () => (
+    <div style={{ padding: "18px 18px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.15s ease" }}>
+      {/* Icon + name + close */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 4, flexShrink: 0, background: selectedTech.color + "18", border: `1px solid ${selectedTech.color}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 0 14px ${selectedTech.color}22` }}>
+          {selectedTech.icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 18, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
+            {selectedTech.name}
+          </div>
+          <div style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, color: techIsDone ? "#5ec26a" : selectedTech.color }}>
+            {techIsDone ? "✓ RESEARCHED" : selectedTech.available ? "AVAILABLE" : "LOCKED"}
+          </div>
+        </div>
+        <button
+          onClick={() => setSelectedTech(null)}
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", borderRadius: 2, width: 26, height: 26, fontSize: 13, cursor: "pointer", flexShrink: 0, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+        >✕</button>
+      </div>
+
+      {/* Description */}
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.55, marginBottom: selectedTech.cost || techIsDone ? 14 : 0 }}>
+        {selectedTech.desc}
+      </div>
+
+      {/* Cost tags */}
+      {!techIsDone && selectedTech.cost && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          {Object.entries(selectedTech.cost).map(([k, v]) => {
+            const item = ITEMS[k];
+            const have = inventory?.[k] || 0;
+            const ok   = have >= v;
+            return (
+              <Tag key={k} color={ok ? "rgba(255,255,255,0.4)" : "#e05252"}>
+                {item?.icon} {v}× {item?.name || k}
+                <span style={{ opacity: 0.5, marginLeft: 3 }}>({have})</span>
+              </Tag>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Action */}
+      {techIsDone ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 3, height: 10, background: "#5ec26a", opacity: 0.5, borderRadius: 1 }} />
+          <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#5ec26a", letterSpacing: 2, textTransform: "uppercase" }}>RESEARCH COMPLETE</span>
+        </div>
+      ) : selectedTech.cost ? (
+        <button
+          onClick={canAffordTech ? () => { onResearch(selectedTech.id); setSelectedTech(null); } : undefined}
+          className={canAffordTech ? "btn-glow" : ""}
+          style={{ padding: "11px 0", background: canAffordTech ? selectedTech.color + "1a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordTech ? selectedTech.color + "50" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordTech ? selectedTech.color : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordTech ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+        >
+          {canAffordTech ? "RESEARCH" : "RESEARCH – INSUFFICIENT RESOURCES"}
+        </button>
+      ) : (
+        <button style={{ padding: "11px 0", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
+          RESEARCH – COMING SOON
+        </button>
+      )}
+    </div>
+  );
+
+  // ── Building header (default top section) ──
+  const BuildingHeader = () => (
+    <>
       <div style={{ position: "relative", width: "100%", height: 130, flexShrink: 0, overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/research_lab.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #070d1a 0%, rgba(7,13,26,0.55) 45%, transparent 100%)" }} />
@@ -1087,16 +1118,37 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
         <div style={{ fontSize: 20, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, color: "#fff", textTransform: "uppercase", lineHeight: 1, marginBottom: 4 }}>
           Research Lab
         </div>
-        <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 1, marginBottom: 8 }}>
-          Level {level}
+        <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: isBuilt ? "#3fa7d6" : "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 8 }}>
+          {isBuilt ? `Level ${level}` : "NOT BUILT"}
         </div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.5 }}>
-          Increases research speed and unlocks advanced technology tiers.
+          {isBuilt ? "Increases research speed and unlocks advanced technology tiers." : "Build this facility to unlock research and new technologies."}
         </div>
       </div>
 
-      {/* ── Section 2: Building upgrade ── */}
-      {nextData ? (
+      {/* Build / Upgrade */}
+      {!isBuilt && nextData ? (
+        <>
+          <SectionLabel>BUILD RESEARCH LAB</SectionLabel>
+          <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
+              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.65)", letterSpacing: 0.5 }}>{formatCost(nextData.cost)}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Unlocks</span>
+              <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
+            </div>
+            <button
+              onClick={canAffordBuild ? onUpgrade : undefined}
+              className={canAffordBuild ? "btn-glow" : ""}
+              style={{ marginTop: 6, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+            >
+              {canAffordBuild ? "BUILD RESEARCH LAB" : "BUILD – INSUFFICIENT RESOURCES"}
+            </button>
+          </div>
+        </>
+      ) : isBuilt && nextData ? (
         <>
           <SectionLabel>UPGRADE TO LV. {level + 1}</SectionLabel>
           <div style={{ padding: "4px 18px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1109,11 +1161,11 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
               <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 0.5 }}>{nextData.label}</span>
             </div>
             <button
-              onClick={canAfford ? onUpgrade : undefined}
-              className={canAfford ? "btn-glow" : ""}
-              style={{ marginTop: 6, padding: "11px 0", background: canAfford ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAfford ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAfford ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAfford ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
+              onClick={canAffordBuild ? onUpgrade : undefined}
+              className={canAffordBuild ? "btn-glow" : ""}
+              style={{ marginTop: 6, padding: "11px 0", background: canAffordBuild ? "#3fa7d61a" : "rgba(255,255,255,0.02)", border: `1px solid ${canAffordBuild ? "#3fa7d650" : "rgba(255,255,255,0.08)"}`, borderRadius: 3, color: canAffordBuild ? "#3fa7d6" : "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: canAffordBuild ? "pointer" : "default", transition: "all 0.15s", width: "100%" }}
             >
-              {canAfford ? `UPGRADE → LV. ${level + 1}` : "UPGRADE – INSUFFICIENT RESOURCES"}
+              {canAffordBuild ? `UPGRADE → LV. ${level + 1}` : "UPGRADE – INSUFFICIENT RESOURCES"}
             </button>
             {currentData && (
               <div style={{ fontSize: 11, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(91,196,232,0.4)", letterSpacing: 0.5 }}>
@@ -1122,54 +1174,44 @@ function LabScreen({ buildingLevels, inventory, credits, onUpgrade }) {
             )}
           </div>
         </>
-      ) : (
+      ) : isBuilt ? (
         <div style={{ padding: "18px", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 3, height: 10, background: "#3fa7d6", opacity: 0.5, borderRadius: 1 }} />
           <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "#3fa7d6", letterSpacing: 2, textTransform: "uppercase" }}>MAX LEVEL REACHED</span>
         </div>
-      )}
+      ) : null}
+    </>
+  );
 
-      {/* ── Section 3: Technologies grid ── */}
-      <SectionLabel>TECHNOLOGIES</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "8px 16px 24px" }}>
-        {LAB_TECHNOLOGIES.map(tech => (
-          <BuildingGridCard
-            key={tech.id}
-            building={tech}
-            level={1}
-            onClick={tech.available ? () => setSelectedTech(tech) : null}
-          />
-        ))}
-      </div>
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
 
-      {/* ── Tech detail modal ── */}
-      {selectedTech && (
-        <div className="modal-overlay" onClick={() => setSelectedTech(null)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span>{selectedTech.icon} {selectedTech.name.toUpperCase()}</span>
-              <button className="modal-close" onClick={() => setSelectedTech(null)}>✕</button>
-            </div>
-            <div style={{ padding: "14px 16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Barlow',sans-serif", lineHeight: 1.6 }}>
-                {selectedTech.desc}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                  <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Cost</span>
-                  <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.55)" }}>— (placeholder)</span>
+      {/* ── Top zone: switches between building header and tech detail ── */}
+      {selectedTech ? <TechDetailPanel /> : <BuildingHeader />}
+
+      {/* ── Technologies grid (only when built) ── */}
+      {isBuilt && (
+        <>
+          <SectionLabel>TECHNOLOGIES</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "8px 16px 24px" }}>
+            {LAB_TECHNOLOGIES.map(tech => {
+              const isDone     = !!researchedTechs?.[tech.id];
+              const isSelected = selectedTech?.id === tech.id;
+              return (
+                <div
+                  key={tech.id}
+                  style={{ borderRadius: 7, boxShadow: isSelected ? "0 0 0 2px rgba(91,196,232,0.75)" : "none", transition: "box-shadow 0.15s" }}
+                >
+                  <BuildingGridCard
+                    building={{ ...tech, available: tech.available }}
+                    level={isDone ? 1 : 0}
+                    onClick={tech.available ? () => handleTechClick(tech) : null}
+                  />
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                  <span style={{ fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, textTransform: "uppercase", flexShrink: 0 }}>Effect</span>
-                  <span style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", color: selectedTech.color }}>— (placeholder)</span>
-                </div>
-              </div>
-              <button style={{ padding: "11px 0", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, color: "rgba(255,255,255,0.2)", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", cursor: "default", width: "100%" }}>
-                RESEARCH – COMING SOON
-              </button>
-            </div>
+              );
+            })}
           </div>
-        </div>
+        </>
       )}
 
     </div>
@@ -1289,11 +1331,10 @@ function HeroBanner({ variant, icon, name, level, xp, extra }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // RESOURCE MODAL
 // ─────────────────────────────────────────────────────────────────────────────
-function ResourceModal({ resource, onStart, onClose, cargoFree }) {
-  const maxActions = Math.max(1, cargoFree);
-  const [quantity, setQuantity] = useState(Math.min(10, maxActions));
+function ResourceModal({ resource, onStart, onClose }) {
+  const [quantity, setQuantity] = useState(10);
 
-  const setQ = (val) => setQuantity(Math.min(maxActions, Math.max(1, val)));
+  const setQ = (val) => setQuantity(Math.max(1, val));
 
   const formatTime = (s) => {
     if (s < 60) return `${s}s`;
@@ -1333,17 +1374,13 @@ function ResourceModal({ resource, onStart, onClose, cargoFree }) {
             type="number"
             value={quantity}
             min={1}
-            max={maxActions}
             onChange={e => setQ(parseInt(e.target.value) || 1)}
           />
           <button className="qty-btn" onClick={() => setQ(quantity + 1)}>+</button>
-          <button className="qty-btn" onClick={() => setQ(maxActions)}>MAX</button>
         </div>
 
         <div className="modal-estimate">
           Dauer: <strong>{formatTime(totalSeconds)}</strong>
-          &nbsp;·&nbsp;
-          Cargo: {quantity} / {cargoFree} frei
         </div>
 
         <button
@@ -1362,13 +1399,11 @@ function ResourceModal({ resource, onStart, onClose, cargoFree }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MINING SKILL SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining }) {
+function MiningSkillScreen({ miningXP, mining, onStartMining }) {
   const level     = getLevel(miningXP);
-  const cargoFull = cargo >= maxCargo;
-  const cargoFree = maxCargo - cargo;
   const [modalResource, setModalResource] = useState(null);
 
-  // Only show home sector (Ruined Stone)
+  // Only show home sector (Raw Stone)
   const homeSector = SECTORS.find(s => s.id === "home");
   const entries = homeSector ? homeSector.materials.map(matRef => ({ sector: homeSector, matRef, locked: false })) : [];
 
@@ -1388,26 +1423,20 @@ function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining })
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
       <HeroBanner variant="mining" icon="⛏" name="Mining" level={level} xp={miningXP} />
 
-      {cargoFull && (
-        <div style={{ margin: "8px 16px 0", padding: "8px 12px", background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.22)", borderLeft: "3px solid rgba(232,168,56,0.55)", borderRadius: 3, fontSize: 11, color: "#e8a838", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>
-          CARGO VOLL — Raffinerie nutzen oder Waren verkaufen
-        </div>
-      )}
-
       <SectionLabel>VERFÜGBARE RESSOURCEN</SectionLabel>
 
       <div style={{ padding: "0 16px 28px" }}>
         {entries.map(({ sector, matRef, locked }, i) => {
           const item     = ITEMS[matRef.id];
           const isActive = mining?.sectorId === sector.id && mining?.matId === matRef.id;
-          const canClick = !locked && !cargoFull && !isActive;
+          const canClick = !locked && !isActive;
 
           return (
             <div key={`${sector.id}-${matRef.id}`}
               className="item-row"
               onClick={() => canClick && item && openModal(sector, matRef, item)}
               style={{
-                opacity: locked ? 0.35 : cargoFull && !isActive ? 0.5 : 1,
+                opacity: locked ? 0.35 : 1,
                 animation: `slideUp ${0.08 + i * 0.05}s ease`,
                 background: isActive ? `${sector.color}12` : undefined,
                 borderColor: isActive ? `${sector.color}50` : undefined,
@@ -1435,9 +1464,7 @@ function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining })
               ) : isActive ? (
                 <button className="btn-stop" onClick={e => { e.stopPropagation(); onStartMining(sector.id, matRef.id); }} style={{ flexShrink: 0 }}>STOP</button>
               ) : (
-                <span style={{ fontSize: 11, color: canClick ? "var(--accent-cyan)" : "var(--text-muted)", opacity: canClick ? 0.7 : 1, flexShrink: 0 }}>
-                  {cargoFull ? "FULL" : "▶"}
-                </span>
+                <span style={{ fontSize: 11, color: canClick ? "var(--accent-cyan)" : "var(--text-muted)", opacity: canClick ? 0.7 : 1, flexShrink: 0 }}>▶</span>
               )}
             </div>
           );
@@ -1447,7 +1474,6 @@ function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining })
       {modalResource && (
         <ResourceModal
           resource={modalResource}
-          cargoFree={cargoFree}
           onStart={(res, qty) => onStartMining(res.sectorId, res.matId, qty)}
           onClose={() => setModalResource(null)}
         />
@@ -1459,10 +1485,8 @@ function MiningSkillScreen({ miningXP, mining, cargo, maxCargo, onStartMining })
 // ─────────────────────────────────────────────────────────────────────────────
 // SALVAGING SKILL SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function SalvagingSkillScreen({ salvagingXP, salvaging, cargo, maxCargo, onStartSalvaging }) {
+function SalvagingSkillScreen({ salvagingXP, salvaging, onStartSalvaging }) {
   const level     = getLevel(salvagingXP);
-  const cargoFull = cargo >= maxCargo;
-  const cargoFree = maxCargo - cargo;
   const [modalResource, setModalResource] = useState(null);
 
   const openModal = (mat, item) => {
@@ -1480,26 +1504,20 @@ function SalvagingSkillScreen({ salvagingXP, salvaging, cargo, maxCargo, onStart
     <div style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease" }}>
       <HeroBanner variant="salvaging" icon="🔩" name="Salvaging" level={level} xp={salvagingXP} />
 
-      {cargoFull && (
-        <div style={{ margin: "8px 16px 0", padding: "8px 12px", background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.22)", borderLeft: "3px solid rgba(232,168,56,0.55)", borderRadius: 3, fontSize: 11, color: "#e8a838", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>
-          CARGO VOLL — Raffinerie nutzen oder Waren verkaufen
-        </div>
-      )}
-
       <SectionLabel>VERFÜGBARE RESSOURCEN</SectionLabel>
 
       <div style={{ padding: "0 16px 28px" }}>
         {SALVAGING_MATS.map((mat, i) => {
           const item     = ITEMS[mat.id];
           const isActive = salvaging?.matId === mat.id;
-          const canClick = !cargoFull && !isActive;
+          const canClick = !isActive;
 
           return (
             <div key={mat.id}
               className="item-row"
               onClick={() => canClick && item && openModal(mat, item)}
               style={{
-                opacity: cargoFull && !isActive ? 0.5 : 1,
+                opacity: 1,
                 animation: `slideUp ${0.08 + i * 0.05}s ease`,
                 background: isActive ? "rgba(63,167,214,0.1)" : undefined,
                 borderColor: isActive ? "rgba(63,167,214,0.35)" : undefined,
@@ -1523,9 +1541,7 @@ function SalvagingSkillScreen({ salvagingXP, salvaging, cargo, maxCargo, onStart
               {isActive ? (
                 <button className="btn-stop" onClick={e => { e.stopPropagation(); onStartSalvaging(mat.id); }} style={{ flexShrink: 0 }}>STOP</button>
               ) : (
-                <span style={{ fontSize: 11, color: canClick ? "var(--accent-cyan)" : "var(--text-muted)", opacity: canClick ? 0.7 : 1, flexShrink: 0 }}>
-                  {cargoFull ? "FULL" : "▶"}
-                </span>
+                <span style={{ fontSize: 11, color: "var(--accent-cyan)", opacity: 0.7, flexShrink: 0 }}>▶</span>
               )}
             </div>
           );
@@ -1535,7 +1551,6 @@ function SalvagingSkillScreen({ salvagingXP, salvaging, cargo, maxCargo, onStart
       {modalResource && (
         <ResourceModal
           resource={modalResource}
-          cargoFree={cargoFree}
           onStart={(res, qty) => onStartSalvaging(res.matId, qty)}
           onClose={() => setModalResource(null)}
         />
@@ -1670,181 +1685,6 @@ function CraftingSkillScreen() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COCKPIT SCREEN (Home — Live Dashboard)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Stable star field generated once at module load
-const COCKPIT_STARS = Array.from({ length: 185 }, () => ({
-  left:    `${(Math.random() * 98 + 1).toFixed(2)}%`,
-  top:     `${(Math.random() * 98 + 1).toFixed(2)}%`,
-  size:    Math.random() < 0.72 ? 1 : 2,
-  opacity: +(0.1 + Math.random() * 0.55).toFixed(2),
-  delay:   `${(Math.random() * 40).toFixed(1)}s`,
-  dur:     `${(50 + Math.random() * 30).toFixed(1)}s`,
-}));
-
-function CockpitScreen({ credits, cargo, maxCargo, mining, activeSector, activeItem, refQueue, onStopMining, onUnload }) {
-  const refActive   = refQueue.length > 0;
-  const cargoRatio  = cargo / maxCargo;
-  const cargoAlmost = cargoRatio >= 0.8 && cargo < maxCargo;
-  const cargoFull   = cargo >= maxCargo;
-  const cargoColor  = cargoFull ? "#ff6b6b" : cargoAlmost ? "#e8a838" : "#5bc4e8";
-
-  // Time remaining calculations
-  const miningMat     = mining ? SECTORS.find(s => s.id === mining.sectorId)?.materials.find(m => m.id === mining.matId) : null;
-  const miningTimeSec = miningMat ? Math.ceil(miningMat.time * (1 - (mining.progress || 0))) : 0;
-
-  const activeRecipe = refActive ? RECIPES.find(r => r.id === refQueue[0]?.recipeId) : null;
-  const refTimeSec   = activeRecipe ? Math.ceil(activeRecipe.time * (1 - (refQueue[0]?.progress || 0))) : 0;
-  const refItem      = activeRecipe ? ITEMS[activeRecipe.id] : null;
-
-  const hasProcess = mining || refActive || cargoAlmost || cargoFull;
-
-  return (
-    <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column", minHeight: 0 }}>
-
-      {/* ── STAR FIELD ── */}
-      <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "#050d1a", zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
-        {COCKPIT_STARS.map((s, i) => (
-          <div key={i} style={{
-            position: "absolute", left: s.left, top: s.top,
-            width: s.size, height: s.size, borderRadius: "50%",
-            background: "#fff", opacity: s.opacity,
-            animation: `starFloat ${s.dur} ease-in-out ${s.delay} infinite`,
-          }} />
-        ))}
-      </div>
-
-      {/* ── CONTENT ── */}
-      <div style={{ position: "relative", zIndex: 1, padding: "22px 18px 28px", display: "flex", flexDirection: "column", gap: 22, animation: "fadeIn 0.3s ease" }}>
-
-        {/* Location */}
-        <div>
-          <div style={{ fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 3, color: "rgba(91,196,232,0.38)", marginBottom: 7, textTransform: "uppercase" }}>Standort</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <span style={{ fontSize: 12 }}>📍</span>
-            <span style={{ fontSize: 26, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: mining && activeSector ? activeSector.color : "#5bc4e8", textShadow: mining && activeSector ? `0 0 24px ${activeSector.color}55` : "0 0 24px rgba(91,196,232,0.28)" }}>
-              {mining && activeSector ? activeSector.name : "OPEN SPACE"}
-            </span>
-            {mining && (
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: activeSector?.color || "#e8a838", animation: "pulseGlow 1.4s infinite", boxShadow: `0 0 8px ${activeSector?.color || "#e8a838"}`, flexShrink: 0, display: "inline-block" }} />
-            )}
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, paddingLeft: 22 }}>
-            {mining && activeSector ? activeSector.region : "Schiff geparkt · Kein aktiver Auftrag"}
-          </div>
-        </div>
-
-        {/* Stats grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {/* Credits */}
-          <div style={{ background: "rgba(4,10,22,0.88)", border: "1px solid rgba(91,196,232,0.11)", borderRadius: 4, padding: "13px 15px", backdropFilter: "blur(8px)" }}>
-            <div style={{ fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2.5, color: "rgba(91,196,232,0.38)", marginBottom: 7, textTransform: "uppercase" }}>Credits</div>
-            <div style={{ fontSize: 22, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, color: "#f1c40f", letterSpacing: 0.5 }}>
-              {fmt(credits)} <span style={{ fontSize: 11, color: "rgba(241,196,15,0.45)", fontWeight: 400 }}>CR</span>
-            </div>
-          </div>
-
-          {/* Cargo with progress bar */}
-          <div style={{ background: "rgba(4,10,22,0.88)", border: `1px solid ${cargoColor}22`, borderRadius: 4, padding: "13px 15px", backdropFilter: "blur(8px)" }}>
-            <div style={{ fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 2.5, color: "rgba(91,196,232,0.38)", marginBottom: 7, textTransform: "uppercase" }}>Cargo Hold</div>
-            <div style={{ marginBottom: 7 }}>
-              <Bar value={cargoRatio} color={cargoColor} height={5} glow={cargoRatio >= 0.8} />
-            </div>
-            <div style={{ fontSize: 14, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, color: cargoColor, letterSpacing: 0.5 }}>
-              {cargo} <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400, fontSize: 12 }}>/ {maxCargo}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Active processes */}
-        <div>
-          {/* Section header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ width: 2, height: 11, background: "#5bc4e8", opacity: 0.45, borderRadius: 1, flexShrink: 0 }} />
-            <span style={{ fontSize: 9, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, letterSpacing: 3, color: "rgba(91,196,232,0.45)", textTransform: "uppercase" }}>Aktive Vorgänge</span>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(91,196,232,0.14), transparent)" }} />
-          </div>
-
-          {/* State A: nothing */}
-          {!hasProcess && (
-            <div style={{ paddingLeft: 10 }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.22)", fontFamily: "'Barlow',sans-serif", marginBottom: 5 }}>Keine aktiven Aufträge.</div>
-              <div style={{ fontSize: 11, color: "rgba(91,196,232,0.28)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1 }}>Starte eine Mission im SECTOR-Tab.</div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-
-            {/* State B: Mining */}
-            {mining && activeSector && (
-              <div style={{ background: "rgba(3,8,18,0.82)", border: `1px solid ${activeSector.color}28`, borderLeft: `3px solid ${activeSector.color}77`, borderRadius: 3, padding: "12px 14px", animation: "slideUp 0.2s ease" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1 }}>⛏</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, color: "#fff", letterSpacing: 0.3 }}>{activeItem?.name}</div>
-                    <div style={{ fontSize: 10, color: activeSector.color, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, marginTop: 2 }}>
-                      {activeSector.name} · {miningTimeSec}s verbleibend
-                    </div>
-                  </div>
-                  <button onClick={onStopMining}
-                    style={{ background: "none", border: "none", color: "rgba(232,80,80,0.38)", fontSize: 14, cursor: "pointer", padding: 0, flexShrink: 0, lineHeight: 1 }}
-                    onMouseEnter={e => e.currentTarget.style.color = "rgba(232,80,80,0.78)"}
-                    onMouseLeave={e => e.currentTarget.style.color = "rgba(232,80,80,0.38)"}
-                    title="Mining stoppen"
-                  >⏹</button>
-                </div>
-                <Bar value={mining.progress || 0} color={activeSector.color} height={4} glow />
-              </div>
-            )}
-
-            {/* State C: Refinery */}
-            {refActive && refItem && (
-              <div style={{ background: "rgba(3,8,18,0.82)", border: "1px solid rgba(94,194,106,0.22)", borderLeft: "3px solid rgba(94,194,106,0.65)", borderRadius: 3, padding: "12px 14px", animation: "slideUp 0.2s ease" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1 }}>⚗</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, color: "#fff", letterSpacing: 0.3 }}>{refItem.name}</div>
-                    <div style={{ fontSize: 10, color: "#5ec26a", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, marginTop: 2 }}>
-                      fertig in {refTimeSec}s{refQueue.length > 1 ? ` · +${refQueue.length - 1} in Queue` : ""}
-                    </div>
-                  </div>
-                </div>
-                <Bar value={refQueue[0]?.progress || 0} color="#5ec26a" height={4} glow />
-              </div>
-            )}
-
-            {/* State D: Cargo warning */}
-            {(cargoAlmost || cargoFull) && (
-              <div style={{ background: "rgba(3,8,18,0.82)", border: `1px solid ${cargoColor}28`, borderLeft: `3px solid ${cargoColor}70`, borderRadius: 3, padding: "12px 14px", animation: "slideUp 0.2s ease" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1 }}>⚠</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 600, color: cargoColor }}>
-                      {cargoFull ? `Cargo voll (${cargo}/${maxCargo})` : `Cargo fast voll (${cargo}/${maxCargo})`}
-                    </div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", fontFamily: "'Barlow',sans-serif", marginTop: 3 }}>
-                      {cargoFull ? "Mining pausiert — Cargo entladen." : "Raffinerie nutzen oder Waren verkaufen."}
-                    </div>
-                  </div>
-                  {cargoFull && (
-                    <button onClick={onUnload}
-                      style={{ background: `${cargoColor}12`, border: `1px solid ${cargoColor}44`, borderRadius: 2, padding: "6px 12px", color: cargoColor, fontSize: 10, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1.5, cursor: "pointer", flexShrink: 0, textTransform: "uppercase", transition: "background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = `${cargoColor}22`}
-                      onMouseLeave={e => e.currentTarget.style.background = `${cargoColor}12`}
-                    >ENTLADEN</button>
-                  )}
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2177,13 +2017,12 @@ export default function App() {
   const [miningXP, setMiningXP]       = useState(0);
   const [salvagingXP, setSalvagingXP] = useState(0);
   const [refiningXP, setRefiningXP]   = useState(0);
-  const [cargo, setCargo]             = useState(0);
   const [installed, setInstalled]     = useState({});
   const [mining, setMining]               = useState(null);
   const [salvaging, setSalvaging]         = useState(null);
   const [refQueue, setRefQueue]           = useState([]);
   const [buildingLevels, setBuildingLevels] = useState({ refinery: 1 });
-  const [actLog, setActLog]           = useState([]);
+  const [researchedTechs, setResearchedTechs] = useState({});
   const [toasts, setToasts]           = useState([]);
   const [currentLocation, setCurrentLocation] = useState("home");
   const [travelling, setTravelling]           = useState(null);
@@ -2218,9 +2057,9 @@ export default function App() {
       if (s.miningXP)       setMiningXP(s.miningXP);
       if (s.salvagingXP)    setSalvagingXP(s.salvagingXP);
       if (s.refiningXP)     setRefiningXP(s.refiningXP);
-      if (s.cargo)          setCargo(s.cargo);
       if (s.installed)      setInstalled(s.installed);
-      if (s.buildingLevels) setBuildingLevels(s.buildingLevels);
+      if (s.buildingLevels)  setBuildingLevels(s.buildingLevels);
+      if (s.researchedTechs) setResearchedTechs(s.researchedTechs);
     }
   };
 
@@ -2229,10 +2068,10 @@ export default function App() {
     if (!session?.user) return;
     await supabase.from("game_saves").upsert({
       user_id: session.user.id,
-      save_data: { inventory, credits, miningXP, salvagingXP, refiningXP, cargo, installed, buildingLevels },
+      save_data: { inventory, credits, miningXP, salvagingXP, refiningXP, installed, buildingLevels, researchedTechs },
       updated_at: new Date().toISOString()
     });
-  }, [session, inventory, credits, miningXP, salvagingXP, refiningXP, cargo, installed]);
+  }, [session, inventory, credits, miningXP, salvagingXP, refiningXP, installed]);
 
   useEffect(() => {
     if (!session) return;
@@ -2242,7 +2081,6 @@ export default function App() {
 
   const warpLevel   = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "warp"   && installed[u.id]).map(u => u.effect.warp),   0);
   const moduleLevel = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "module" && installed[u.id]).map(u => u.effect.module), 0);
-  const maxCargo    = 20 + SHIP_UPGRADES.filter(u => u.cat === "cargo" && installed[u.id]).reduce((a, u) => a + u.effect.cargo, 0);
   const miningLevel = getLevel(miningXP);
   const totalLevel  = miningLevel;
 
@@ -2280,9 +2118,7 @@ export default function App() {
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   }, []);
 
-  const addLog = useCallback((msg) => {
-    setActLog(l => [{ id: Date.now() + Math.random(), msg, time: new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }, ...l.slice(0, 99)]);
-  }, []);
+  const addLog = () => {};
 
   // Mining tick
   useEffect(() => {
@@ -2297,19 +2133,6 @@ export default function App() {
         if (!m) return null;
         const p = (m.progress || 0) + (0.05 / matRef.time);
         if (p < 1) return { ...m, progress: p };
-
-        // Check cargo
-        let stopped = false;
-        setCargo(c => {
-          const nc = c + matRef.amount;
-          if (nc > maxCargo) { stopped = true; return c; }
-          return nc;
-        });
-        if (stopped) {
-          addToast("Cargo hold full!", "📦", "#e8a838");
-          addLog("📦 Cargo full — mining stopped");
-          return null;
-        }
 
         setInventory(inv => ({ ...inv, [matRef.id]: (inv[matRef.id] || 0) + matRef.amount }));
         setMiningXP(x => {
@@ -2329,10 +2152,7 @@ export default function App() {
       });
     }, 50);
     return () => clearInterval(timerRef.current);
-  }, [mining?.sectorId, mining?.matId, maxCargo]);
-
-  useEffect(() => { if (cargo >= maxCargo && mining)    { setMining(null); }    }, [cargo, maxCargo]);
-  useEffect(() => { if (cargo >= maxCargo && salvaging) { setSalvaging(null); } }, [cargo, maxCargo]);
+  }, [mining?.sectorId, mining?.matId]);
 
   // Salvaging tick
   useEffect(() => {
@@ -2346,19 +2166,6 @@ export default function App() {
         if (!s) return null;
         const p = (s.progress || 0) + (0.05 / mat.time);
         if (p < 1) return { ...s, progress: p };
-
-        // Check cargo
-        let stopped = false;
-        setCargo(c => {
-          const nc = c + mat.amount;
-          if (nc > maxCargo) { stopped = true; return c; }
-          return nc;
-        });
-        if (stopped) {
-          addToast("Cargo hold full!", "📦", "#e8a838");
-          addLog("📦 Cargo full — salvaging stopped");
-          return null;
-        }
 
         setInventory(inv => ({ ...inv, [mat.id]: (inv[mat.id] || 0) + mat.amount }));
         setSalvagingXP(x => {
@@ -2379,7 +2186,7 @@ export default function App() {
       });
     }, 50);
     return () => clearInterval(salvagingTimerRef.current);
-  }, [salvaging?.matId, maxCargo]);
+  }, [salvaging?.matId]);
 
   // Refinery tick
   useEffect(() => {
@@ -2492,7 +2299,7 @@ export default function App() {
 
   const upgradeBuilding = (buildingId) => {
     const building = BUILDINGS.find(b => b.id === buildingId);
-    const curLevel = buildingLevels[buildingId] || 1;
+    const curLevel = buildingLevels[buildingId] ?? 0;
     const nextData = building?.levels?.find(l => l.level === curLevel + 1);
     if (!nextData?.cost) return;
     const cost = nextData.cost;
@@ -2503,6 +2310,18 @@ export default function App() {
     setBuildingLevels(bl => ({ ...bl, [buildingId]: curLevel + 1 }));
     addToast(`${building.name} auf Level ${curLevel + 1} aufgewertet!`, building.icon, building.color);
     addLog(`🏗 ${building.name} → Level ${curLevel + 1}`);
+  };
+
+  const researchTech = (techId) => {
+    const tech = LAB_TECHNOLOGIES.find(t => t.id === techId);
+    if (!tech?.cost || researchedTechs[techId]) return;
+    const cost = tech.cost;
+    for (const [k, v] of Object.entries(cost)) {
+      if ((inventory[k] || 0) < v) { addToast("Nicht genug Materialien.", "❌", "#e05252"); return; }
+    }
+    setInventory(inv => { const n = { ...inv }; for (const [k, v] of Object.entries(cost)) n[k] = (n[k] || 0) - v; return n; });
+    setResearchedTechs(rt => ({ ...rt, [techId]: true }));
+    addToast(`${tech.name} researched!`, tech.icon, tech.color);
   };
 
   const activeMat    = mining ? SECTORS.find(s => s.id === mining.sectorId)?.materials.find(m => m.id === mining.matId) : null;
@@ -2556,7 +2375,7 @@ export default function App() {
       <div className="app-panel" style={{ height: "100vh", maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", zIndex: 1, overflow: "hidden" }}>
 
         {/* ── PERSISTENT TOP HEADER ── */}
-        <div className="hud-scanline" style={{ height: 44, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(91,196,232,0.1)", background: "rgba(5,12,25,0.92)", backdropFilter: "blur(12px)", flexShrink: 0, position: "relative" }}>
+        <div style={{ height: 44, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(91,196,232,0.1)", background: "rgba(5,12,25,0.92)", backdropFilter: "blur(12px)", flexShrink: 0, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: `radial-gradient(circle at 35% 35%, ${rank.color}44, ${rank.color}0d)`, border: `1px solid ${rank.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🧑‍🚀</div>
             <div>
@@ -2574,7 +2393,7 @@ export default function App() {
               </div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'Barlow Condensed',sans-serif" }}>
-              <span onClick={() => setInventoryOpen(true)} style={{ fontSize: 11, color: cargo >= maxCargo ? "#ff6b6b" : cargo / maxCargo >= 0.8 ? "#e8a838" : "rgba(91,196,232,0.55)", letterSpacing: 0.3, cursor: "pointer" }}>🎒 {cargo}/{maxCargo}</span>
+              <span onClick={() => setInventoryOpen(true)} style={{ fontSize: 11, color: "rgba(91,196,232,0.55)", letterSpacing: 0.3, cursor: "pointer" }}>🎒</span>
               <span style={{ color: "rgba(255,255,255,0.18)", fontSize: 10 }}>·</span>
               <span style={{ fontSize: 11, color: "#f1c40f", letterSpacing: 0.5 }}>{fmt(credits)} CR</span>
             </div>
@@ -2633,11 +2452,11 @@ export default function App() {
 
           {/* ORT screens */}
           {tab === "ort" && screen === "sectorList" && (
-            <SectorTab mining={mining} miningXP={miningXP} warpLevel={warpLevel} maxCargo={maxCargo} cargo={cargo}
+            <SectorTab mining={mining} miningXP={miningXP} warpLevel={warpLevel}
               onSelectSector={s => { setScreen("sectorDetail"); setScreenData(s); }} />
           )}
           {tab === "ort" && screen === "sectorDetail" && screenData && (
-            <SectorScreen sector={screenData} mining={mining} cargo={cargo} maxCargo={maxCargo}
+            <SectorScreen sector={screenData} mining={mining}
               onStartMining={startMining} />
           )}
           {tab === "ort" && screen === "base" && (
@@ -2648,16 +2467,14 @@ export default function App() {
               onQueue={queueRecipe} onSell={sellAll} />
           )}
           {tab === "ort" && screen === "miningDetail" && (
-            <MiningSkillScreen miningXP={miningXP} mining={mining}
-              cargo={cargo} maxCargo={maxCargo} onStartMining={startMining} />
+            <MiningSkillScreen miningXP={miningXP} mining={mining} onStartMining={startMining} />
           )}
           {tab === "ort" && screen === "refiningDetail" && (
             <RefiningSkillScreen inventory={inventory} refQueue={refQueue} moduleLevel={moduleLevel}
               onQueue={queueRecipe} onSell={sellAll} />
           )}
           {tab === "ort" && screen === "salvagingDetail" && (
-            <SalvagingSkillScreen salvagingXP={salvagingXP} salvaging={salvaging}
-              cargo={cargo} maxCargo={maxCargo} onStartSalvaging={startSalvaging} />
+            <SalvagingSkillScreen salvagingXP={salvagingXP} salvaging={salvaging} onStartSalvaging={startSalvaging} />
           )}
           {tab === "ort" && screen === "craftingDetail" && <CraftingSkillScreen />}
           {tab === "ort" && screen === "buildingDetail" && screenData === "lab" && (
@@ -2666,6 +2483,8 @@ export default function App() {
               inventory={inventory}
               credits={credits}
               onUpgrade={() => upgradeBuilding("lab")}
+              researchedTechs={researchedTechs}
+              onResearch={researchTech}
             />
           )}
           {tab === "ort" && screen === "buildingDetail" && screenData && screenData !== "lab" && (
@@ -2678,6 +2497,7 @@ export default function App() {
           {tab === "ort" && !screen && (
             <OrtScreen
               mining={mining} salvaging={salvaging} refQueue={refQueue} buildingLevels={buildingLevels}
+              researchedTechs={researchedTechs}
               currentLocation={currentLocation} miningXP={miningXP} salvagingXP={salvagingXP} refiningXP={refiningXP}
               onNavigate={(screenName, data) => { setNavDir("fwd"); setScreen(screenName); if (data !== undefined) setScreenData(data); }}
             />
