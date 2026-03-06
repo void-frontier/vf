@@ -2261,10 +2261,17 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        // Only null out session on explicit sign-out — NOT during token-refresh
+        // sequences where Supabase briefly fires SIGNED_OUT then SIGNED_IN,
+        // which unmounts the game component and wipes all React state.
+        setSession(null);
+        gameLoaded.current = false;
+        return;
+      }
+      if (!session) return;
       setSession(session);
-      if (!session) { gameLoaded.current = false; return; } // reset on sign-out
-      // Guard: only load once per page load — Supabase can re-fire SIGNED_IN on
-      // tab focus / token refresh, which would overwrite live game state with old save.
+      // Load game state exactly once per page load.
       if (!gameLoaded.current && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
         gameLoaded.current = true;
         loadGame(session.user.id);
