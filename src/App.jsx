@@ -2255,15 +2255,18 @@ export default function App() {
   const travelTimerRef    = useRef(null);
   const toastId           = useRef(0);
   const pendingUsername   = useRef(null); // username entered on login screen before auth completes
+  const gameLoaded        = useRef(false); // loadGame runs exactly once per page load
 
   // ── AUTH ────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      // Only load game on initial login — not on token refresh or other events,
-      // which would overwrite the current in-memory game state with the old save.
-      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+      if (!session) { gameLoaded.current = false; return; } // reset on sign-out
+      // Guard: only load once per page load — Supabase can re-fire SIGNED_IN on
+      // tab focus / token refresh, which would overwrite live game state with old save.
+      if (!gameLoaded.current && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        gameLoaded.current = true;
         loadGame(session.user.id);
       }
     });
