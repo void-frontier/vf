@@ -2134,12 +2134,13 @@ function LoginScreen({ onBeforeLogin }) {
       {/* CTA card */}
       <div style={{ width: "100%", maxWidth: 400, marginBottom: 28 }}>
         {sent ? (
-          <div style={{ textAlign: "center", padding: "28px 24px", background: "rgba(255,255,255,0.055)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 16 }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
-            <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10, color: "#fff" }}>Check your inbox</div>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, margin: 0 }}>
-              We sent a login link to <strong style={{ color: "#fff" }}>{email}</strong>.<br />Click it to enter the game.
-            </p>
+          <div style={{ background: "rgba(5,12,25,0.92)", border: "1px solid rgba(91,196,232,0.2)", borderTop: "2px solid rgba(91,196,232,0.5)", borderRadius: 16, overflow: "hidden", boxShadow: "0 0 60px rgba(91,196,232,0.07)", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 198 }}>
+            <div style={{ textAlign: "center", padding: "28px 24px" }}>
+              <div style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 10, color: "#fff" }}>Check your inbox</div>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, margin: 0 }}>
+                We sent a login link to <strong style={{ color: "rgba(255,255,255,0.85)" }}>{email}</strong>.<br />Click it to enter the game.
+              </p>
+            </div>
           </div>
         ) : (
           <div style={{ background: "rgba(5,12,25,0.92)", border: "1px solid rgba(91,196,232,0.2)", borderTop: "2px solid rgba(91,196,232,0.5)", borderRadius: 16, overflow: "hidden", boxShadow: "0 0 60px rgba(91,196,232,0.07)" }}>
@@ -2253,15 +2254,18 @@ export default function App() {
   const refTimerRef       = useRef(null);
   const travelTimerRef    = useRef(null);
   const toastId           = useRef(0);
-  const saveTimer         = useRef(null);
   const pendingUsername   = useRef(null); // username entered on login screen before auth completes
 
   // ── AUTH ────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (session) loadGame(session.user.id);
+      // Only load game on initial login — not on token refresh or other events,
+      // which would overwrite the current in-memory game state with the old save.
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        loadGame(session.user.id);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -2410,11 +2414,15 @@ export default function App() {
     });
   }, [session, username, inventory, credits, miningXP, salvagingXP, refiningXP, installed, mining, salvaging, refQueue]);
 
+  // Keep a ref to the latest saveGame so the interval always calls the current version
+  // without restarting every time game state changes (which would prevent it from ever firing).
+  const saveGameRef = useRef(saveGame);
+  useEffect(() => { saveGameRef.current = saveGame; }, [saveGame]);
   useEffect(() => {
     if (!session) return;
-    saveTimer.current = setInterval(saveGame, 30000);
-    return () => clearInterval(saveTimer.current);
-  }, [saveGame, session]);
+    const id = setInterval(() => saveGameRef.current(), 30000);
+    return () => clearInterval(id);
+  }, [session]);
 
   const warpLevel   = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "warp"   && installed[u.id]).map(u => u.effect.warp),   0);
   const moduleLevel = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "module" && installed[u.id]).map(u => u.effect.module), 0);
