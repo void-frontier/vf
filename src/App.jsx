@@ -2453,7 +2453,7 @@ export default function App() {
 
   const addLog = () => {};
 
-  // Mining tick
+  // Mining tick — time-based so throttled background tabs catch up on return
   useEffect(() => {
     clearInterval(timerRef.current);
     if (!mining) return;
@@ -2461,90 +2461,112 @@ export default function App() {
     const matRef = sector?.materials.find(m => m.id === mining.matId);
     if (!matRef) return;
 
+    let lastTick = Date.now();
     timerRef.current = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTick) / 1000; // real seconds since last tick
+      lastTick = now;
+
       setMining(m => {
         if (!m) return null;
-        const p = (m.progress || 0) + (0.05 / matRef.time);
-        if (p < 1) return { ...m, progress: p };
+        const timeLeft = matRef.time * (1 - (m.progress || 0));
+        if (dt < timeLeft) return { ...m, progress: (m.progress || 0) + dt / matRef.time };
 
-        setInventory(inv => ({ ...inv, [matRef.id]: (inv[matRef.id] || 0) + matRef.amount }));
+        // One or more completions fit in dt
+        const extra      = dt - timeLeft;
+        const totalNew   = 1 + Math.floor(extra / matRef.time);
+        const newProg    = (extra % matRef.time) / matRef.time;
+        const totalDone  = (m.completions || 0) + totalNew;
+        setInventory(inv => ({ ...inv, [matRef.id]: (inv[matRef.id] || 0) + totalNew * matRef.amount }));
         setMiningXP(x => {
-          const next = x + matRef.time * 0.8;
+          const next = x + totalNew * matRef.time * 0.8;
           if (getLevel(next) > getLevel(x)) addToast(`Mining reached Level ${getLevel(next)}!`, "🎉", "#e8a838");
           return next;
         });
-        const item = ITEMS[matRef.id];
-        const newCompletions = (m.completions || 0) + 1;
-        addLog(`⛏️ ${item?.icon} ${item?.name} +${matRef.amount}`);
-        if (m.targetCompletions && newCompletions >= m.targetCompletions) {
-          addToast(`${newCompletions}× ${item?.name} abgebaut!`, "✅", "#e8a838");
-          addLog(`✅ Mining abgeschlossen – ${newCompletions} Aktionen`);
+        if (m.targetCompletions && totalDone >= m.targetCompletions) {
+          addToast(`${totalDone}× ${ITEMS[matRef.id]?.name} mined!`, "✅", "#e8a838");
           return null;
         }
-        return { ...m, progress: 0, completions: newCompletions };
+        return { ...m, progress: newProg, completions: totalDone };
       });
     }, 50);
     return () => clearInterval(timerRef.current);
   }, [mining?.sectorId, mining?.matId]);
 
-  // Salvaging tick
+  // Salvaging tick — time-based
   useEffect(() => {
     clearInterval(salvagingTimerRef.current);
     if (!salvaging) return;
     const mat = SALVAGING_MATS.find(m => m.id === salvaging.matId);
     if (!mat) return;
 
+    let lastTick = Date.now();
     salvagingTimerRef.current = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+
       setSalvaging(s => {
         if (!s) return null;
-        const p = (s.progress || 0) + (0.05 / mat.time);
-        if (p < 1) return { ...s, progress: p };
+        const timeLeft = mat.time * (1 - (s.progress || 0));
+        if (dt < timeLeft) return { ...s, progress: (s.progress || 0) + dt / mat.time };
 
-        setInventory(inv => ({ ...inv, [mat.id]: (inv[mat.id] || 0) + mat.amount }));
+        const extra     = dt - timeLeft;
+        const totalNew  = 1 + Math.floor(extra / mat.time);
+        const newProg   = (extra % mat.time) / mat.time;
+        const totalDone = (s.completions || 0) + totalNew;
+        setInventory(inv => ({ ...inv, [mat.id]: (inv[mat.id] || 0) + totalNew * mat.amount }));
         setSalvagingXP(x => {
-          const next = x + mat.time * 0.2;
+          const next = x + totalNew * mat.time * 0.2;
           if (getLevel(next) > getLevel(x)) addToast(`Salvaging reached Level ${getLevel(next)}!`, "🎉", "#3fa7d6");
           return next;
         });
-
-        const item = ITEMS[mat.id];
-        const newCompletions = (s.completions || 0) + 1;
-        addLog(`🔩 ${item?.icon} ${item?.name} +${mat.amount}`);
-        if (s.targetCompletions && newCompletions >= s.targetCompletions) {
-          addToast(`${newCompletions}× ${item?.name} salvaged!`, "✅", "#3fa7d6");
-          addLog(`✅ Salvaging abgeschlossen – ${newCompletions} Aktionen`);
+        if (s.targetCompletions && totalDone >= s.targetCompletions) {
+          addToast(`${totalDone}× ${ITEMS[mat.id]?.name} salvaged!`, "✅", "#3fa7d6");
           return null;
         }
-        return { ...s, progress: 0, completions: newCompletions };
+        return { ...s, progress: newProg, completions: totalDone };
       });
     }, 50);
     return () => clearInterval(salvagingTimerRef.current);
   }, [salvaging?.matId]);
 
-  // Refinery tick
+  // Refinery tick — time-based
   useEffect(() => {
     clearInterval(refTimerRef.current);
     if (refQueue.length === 0) return;
+
+    let lastTick = Date.now();
     refTimerRef.current = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+
       setRefQueue(q => {
         if (q.length === 0) return q;
-        const [head, ...rest] = q;
-        const recipe = RECIPES.find(r => r.id === head.recipeId);
-        if (!recipe) return rest;
-        const p = (head.progress || 0) + (0.05 / recipe.time);
-        if (p >= 1) {
-          const item = ITEMS[recipe.id];
-          setInventory(inv => ({ ...inv, [recipe.id]: (inv[recipe.id] || 0) + 1 }));
-          setRefiningXP(x => {
-            const next = x + recipe.time;
-            if (getLevel(next) > getLevel(x)) addToast(`Refining reached Level ${getLevel(next)}!`, "🎉", "#5ec26a");
-            return next;
-          });
-          addLog(`⚗️ ${item?.icon} ${item?.name} completed`);
-          if (rest.length === 0) addToast("Refinery queue complete.", "⚗️", "#5ec26a");
-          return rest;
+        let remaining = dt;
+        const newQ = [...q];
+        while (newQ.length > 0 && remaining > 0) {
+          const head   = newQ[0];
+          const recipe = RECIPES.find(r => r.id === head.recipeId);
+          if (!recipe) { newQ.shift(); continue; }
+          const timeLeft = recipe.time * (1 - (head.progress || 0));
+          if (remaining >= timeLeft) {
+            remaining -= timeLeft;
+            newQ.shift();
+            setInventory(inv => ({ ...inv, [recipe.id]: (inv[recipe.id] || 0) + 1 }));
+            setRefiningXP(x => {
+              const next = x + recipe.time;
+              if (getLevel(next) > getLevel(x)) addToast(`Refining reached Level ${getLevel(next)}!`, "🎉", "#5ec26a");
+              return next;
+            });
+            if (newQ.length === 0) addToast("Refinery queue complete.", "⚗️", "#5ec26a");
+          } else {
+            newQ[0] = { ...head, progress: (head.progress || 0) + remaining / recipe.time };
+            remaining = 0;
+          }
         }
-        return [{ ...head, progress: p }, ...rest];
+        return newQ;
       });
     }, 50);
     return () => clearInterval(refTimerRef.current);
