@@ -2572,14 +2572,18 @@ export default function App() {
     return () => clearInterval(refTimerRef.current);
   }, [refQueue.length]);
 
-  // Travel tick
+  // Travel tick — time-based so throttled background tabs catch up on return
   useEffect(() => {
     clearInterval(travelTimerRef.current);
     if (!travelling) return;
+    let lastTick = Date.now();
     travelTimerRef.current = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
       setTravelling(t => {
         if (!t) return null;
-        const p = (t.progress || 0) + (0.05 / TRAVEL_SECS);
+        const p = (t.progress || 0) + dt / TRAVEL_SECS;
         if (p >= 1) {
           const dest = t.destId === "home" ? HOME_LOCATION : SECTORS.find(s => s.id === t.destId);
           setCurrentLocation(t.destId);
