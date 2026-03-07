@@ -2413,17 +2413,23 @@ export default function App() {
   // ── SAVE GAME (auto every 30s) ─────────────────────────────────────────
   const saveGame = useCallback(async () => {
     if (!session?.user) return;
-    await supabase.from("game_saves").upsert({
-      user_id: session.user.id,
-      save_data: {
-        username,
-        inventory, credits, miningXP, salvagingXP, refiningXP,
-        installed, buildingLevels, researchedTechs,
-        mining, salvaging, refQueue,
-        savedAt: Date.now(),
-      },
-      updated_at: new Date().toISOString()
-    }, { onConflict: "user_id" });
+    const saveData = {
+      username,
+      inventory, credits, miningXP, salvagingXP, refiningXP,
+      installed, buildingLevels, researchedTechs,
+      mining, salvaging, refQueue,
+      savedAt: Date.now(),
+    };
+    const now = new Date().toISOString();
+    // Try update first; if no row exists yet, insert.
+    const { data: updated } = await supabase
+      .from("game_saves")
+      .update({ save_data: saveData, updated_at: now })
+      .eq("user_id", session.user.id)
+      .select("user_id");
+    if (!updated || updated.length === 0) {
+      await supabase.from("game_saves").insert({ user_id: session.user.id, save_data: saveData, updated_at: now });
+    }
   }, [session, username, inventory, credits, miningXP, salvagingXP, refiningXP, installed, mining, salvaging, refQueue]);
 
   // Keep a ref to the latest saveGame so the interval always calls the current version
