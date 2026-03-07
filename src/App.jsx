@@ -2328,8 +2328,9 @@ export default function App() {
         const timeLeft = mRef.time * (1 - (newMining.progress || 0));
         if (elapsedSec >= timeLeft) {
           const extra      = elapsedSec - timeLeft;
-          const totalNew   = 1 + Math.floor(extra / mRef.time);
-          const newProg    = (extra % mRef.time) / mRef.time;
+          const maxNew     = newMining.targetCompletions ? newMining.targetCompletions - (newMining.completions || 0) : Infinity;
+          const totalNew   = Math.min(1 + Math.floor(extra / mRef.time), maxNew);
+          const newProg    = totalNew < maxNew ? (extra % mRef.time) / mRef.time : 0;
           const totalDone  = (newMining.completions || 0) + totalNew;
           const gained     = totalNew * mRef.amount;
           inv  = { ...inv, [mRef.id]: (inv[mRef.id] || 0) + gained };
@@ -2352,8 +2353,9 @@ export default function App() {
         const timeLeft = mat.time * (1 - (newSalvaging.progress || 0));
         if (elapsedSec >= timeLeft) {
           const extra      = elapsedSec - timeLeft;
-          const totalNew   = 1 + Math.floor(extra / mat.time);
-          const newProg    = (extra % mat.time) / mat.time;
+          const maxNew     = newSalvaging.targetCompletions ? newSalvaging.targetCompletions - (newSalvaging.completions || 0) : Infinity;
+          const totalNew   = Math.min(1 + Math.floor(extra / mat.time), maxNew);
+          const newProg    = totalNew < maxNew ? (extra % mat.time) / mat.time : 0;
           const totalDone  = (newSalvaging.completions || 0) + totalNew;
           const gained     = totalNew * mat.amount;
           inv   = { ...inv, [mat.id]: (inv[mat.id] || 0) + gained };
@@ -2432,6 +2434,16 @@ export default function App() {
     if (!session) return;
     const id = setInterval(() => saveGameRef.current(), 30000);
     return () => clearInterval(id);
+  }, [session]);
+
+  // Save immediately when the tab is hidden (user switches away or closes the game)
+  useEffect(() => {
+    if (!session) return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") saveGameRef.current();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [session]);
 
   const warpLevel   = Math.max(0, ...SHIP_UPGRADES.filter(u => u.cat === "warp"   && installed[u.id]).map(u => u.effect.warp),   0);
