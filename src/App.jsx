@@ -2423,7 +2423,7 @@ export default function App() {
         savedAt: Date.now(),
       },
       updated_at: new Date().toISOString()
-    });
+    }, { onConflict: "user_id" });
   }, [session, username, inventory, credits, miningXP, salvagingXP, refiningXP, installed, mining, salvaging, refQueue]);
 
   // Keep a ref to the latest saveGame so the interval always calls the current version
