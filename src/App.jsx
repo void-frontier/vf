@@ -141,8 +141,9 @@ const BUILDINGS = [
     desc: "Expands your inventory capacity for resources and goods.",
     available: true,
     levels: [
-      { level: 1, label: "50 slot capacity", cost: { ruined_stone: 20, scrap_metal: 5 },                      time: 90  },
-      { level: 2, label: "75 slot capacity", cost: { credits: 100, ruined_stone: 40, scrap_metal: 15 },        time: 300 },
+      { level: 1, label: "50 slot capacity", cost: { ruined_stone: 15, scrap_metal: 5 },                      time: 90  },
+      { level: 2, label: "75 slot capacity", cost: { ruined_stone: 40, scrap_metal: 20 },                     time: 300 },
+      { level: 3, label: "100 slot capacity", cost: { ruined_stone: 80, scrap_metal: 60 },                    time: 600 },
     ],
   },
   {
@@ -152,7 +153,7 @@ const BUILDINGS = [
     unlockRequires: { building: "storage", level: 2 },
     unlockLabel: "Requires Storage Lv. 2",
     levels: [
-      { level: 1, label: "Basic operations", cost: { ruined_stone: 80, scrap_metal: 40, credits: 150 },       time: 600 },
+      { level: 1, label: "Basic operations", cost: { ruined_stone: 60, scrap_metal: 60 },                     time: 600 },
     ],
   },
   {
@@ -163,7 +164,7 @@ const BUILDINGS = [
     unlockRequires: { building: "command_post", level: 1 },
     unlockLabel: "Requires Command Post Lv. 1",
     levels: [
-      { level: 1, label: "1 research slot · speed 1×",    cost: { ruined_stone: 20, scrap_metal: 5 },         time: 120  },
+      { level: 1, label: "1 research slot · speed 1×",    cost: { ruined_stone: 80, scrap_metal: 50 },        time: 120  },
       { level: 2, label: "2 research slots · speed 1.5×", cost: { credits: 200, ref_silicate: 5 },            time: 480  },
       { level: 3, label: "3 research slots · speed 2×",   cost: { credits: 600, ferrite_plate: 4 },           time: 1200 },
     ],
@@ -359,6 +360,23 @@ html, body { background: #07090f; color: #c8d4e0; font-family: 'Barlow', sans-se
 /* Bottom navigation — mobile only */
 .bottom-nav-mobile { display: none; }
 @media (max-width: 1023px) { .bottom-nav-mobile { display: flex; } }
+
+/* ── Mobile layout fixes ── */
+.content-column { padding-left: 52px; }
+@media (max-width: 1023px) { .content-column { padding-left: 0; } }
+
+.content-wrapper { padding: 32px; }
+@media (max-width: 600px)  { .content-wrapper { padding: 12px 12px 80px; } }
+@media (min-width: 601px) and (max-width: 1023px) { .content-wrapper { padding: 20px 20px 80px; } }
+
+/* Safe-area insets for notched/home-bar phones */
+.bottom-nav-mobile {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* Larger touch targets on mobile nav buttons */
+@media (max-width: 1023px) {
+  .bottom-nav-mobile button { min-height: 56px; }
+}
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3681,7 +3699,7 @@ export default function App() {
         </div>
 
         {/* ── CONTENT COLUMN ── */}
-        <div style={{ flex: 1, minWidth: 0, paddingLeft: 52 }}>
+        <div className="content-column" style={{ flex: 1, minWidth: 0 }}>
 
         {/* ── BREADCRUMB (always visible → no layout jump) ── */}
         <div style={{ height: (tab === "ort" && (!screen || screen.endsWith("Detail"))) || tab === "ship" ? 0 : 34, overflow: "hidden", padding: (tab === "ort" && (!screen || screen.endsWith("Detail"))) || tab === "ship" ? 0 : "0 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(91,196,232,0.08)", background: "rgba(3,8,18,0.72)", flexShrink: 0, position: "sticky", top: 44, zIndex: 99 }}>
@@ -3727,7 +3745,7 @@ export default function App() {
 
         {/* ── CONTENT ── */}
         <div style={{ flex: 1 }}>
-        <div key={`${tab}-${screen || "root"}`} className={navDir === "fwd" ? "screen-fwd" : navDir === "back" ? "screen-back" : "screen-tab"} style={{ maxWidth: 1200, margin: "0 auto", padding: "32px", boxSizing: "border-box" }}>
+        <div key={`${tab}-${screen || "root"}`} className={`content-wrapper ${navDir === "fwd" ? "screen-fwd" : navDir === "back" ? "screen-back" : "screen-tab"}`} style={{ maxWidth: 1200, margin: "0 auto", boxSizing: "border-box" }}>
 
           {/* ORT screens */}
           {tab === "ort" && screen === "sectorList" && (
