@@ -365,6 +365,10 @@ html, body { background: #07090f; color: #c8d4e0; font-family: 'Barlow', sans-se
 .content-column { padding-left: 52px; }
 @media (max-width: 1023px) { .content-column { padding-left: 0; } }
 
+/* Activities + Buildings grid: side-by-side on wide, stacked on narrow */
+.ort-main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .ort-main-grid { grid-template-columns: 1fr; } }
+
 .content-wrapper { padding: 32px; }
 @media (max-width: 600px)  { .content-wrapper { padding: 12px 12px 80px; } }
 @media (min-width: 601px) and (max-width: 1023px) { .content-wrapper { padding: 20px 20px 80px; } }
@@ -1768,7 +1772,7 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTech
       )}
 
       {/* ── Activities + Buildings (hidden when storage open) ── */}
-      {!storageOpen && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {!storageOpen && <div className="ort-main-grid">
 
         {/* Activities Card — list state / resource selection state */}
         <div style={cardStyle}>
