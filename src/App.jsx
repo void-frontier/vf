@@ -227,6 +227,16 @@ function xpToNext(xp) { const l = getLevel(xp); return l >= 99 ? 0 : Math.ceil(X
 // ─────────────────────────────────────────────────────────────────────────────
 const fmt = (n) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(Math.floor(n));
 
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const handler = () => setW(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return w;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CSS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1644,6 +1654,7 @@ function SalvagingPanel({ salvaging, onStartSalvaging }) {
 }
 
 function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTechs, currentLocation, miningXP, salvagingXP, refiningXP, onNavigate, inventory, credits, onUpgrade, onStartMining, onStartSalvaging, onStopRefining }) {
+  const windowWidth = useWindowWidth();
   const isMiningActive    = !!mining;
   const isSalvagingActive = !!salvaging;
   const isRefiningActive  = refQueue.length > 0;
@@ -1772,7 +1783,7 @@ function OrtScreen({ mining, salvaging, refQueue, buildingLevels, researchedTech
       )}
 
       {/* ── Activities + Buildings (hidden when storage open) ── */}
-      {!storageOpen && <div className="ort-main-grid">
+      {!storageOpen && <div style={{ display: "grid", gridTemplateColumns: windowWidth <= 700 ? "1fr" : "1fr 1fr", gap: 16 }}>
 
         {/* Activities Card — list state / resource selection state */}
         <div style={cardStyle}>
